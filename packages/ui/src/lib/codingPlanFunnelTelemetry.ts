@@ -3,12 +3,10 @@ import {
   BUILTIN_MODEL_PROVIDER_IDS,
   isZaiCodingPlanProviderId,
   ZAI_PROVIDER_ID,
-  type IPlatformService,
   type UsageEntitlementSnapshot,
 } from "@zcode/shared";
 import type { ProviderSettingsView } from "@zcode/services";
 import { logger } from "@/logger.js";
-import { reportAppTelemetryEvent } from "@/lib/appTelemetry.js";
 
 export type CodingPlanUpgradeSource =
   | "profile_menu"
@@ -42,8 +40,6 @@ export interface CodingPlanEntryPlanState {
   entryPlanStatus: CodingPlanEntryPlanStatus;
   entryPlanLevel: string;
 }
-
-type TelemetryPlatform = Pick<IPlatformService, "reportTelemetryEvent">;
 
 export function createPurchaseFunnelId(): string {
   return globalThis.crypto?.randomUUID?.() ?? createFallbackFunnelId();
@@ -165,39 +161,6 @@ export function resolveCodingPlanEntryPlanStateFromProviderSettings(
   return resolveCodingPlanEntryPlanState({ displayStatus: "notPurchased" });
 }
 
-export function reportCodingPlanUpgradeClick(
-  platform: TelemetryPlatform | null | undefined,
-  context: CodingPlanFunnelContext | null | undefined,
-): void {
-  if (!platform || !context) {
-    return;
-  }
-  void reportAppTelemetryEvent(
-    platform,
-    {
-      eventType: "ck",
-      eventRegion: context.eventRegion,
-      elementName: "coding_plan_upgrade_ck",
-      eventText: context.eventText,
-      eventExtraDetail: buildFunnelBaseDetail(context),
-    },
-    "codingPlanFunnelTelemetry",
-  );
-}
-
-export function buildFunnelBaseDetail(context: CodingPlanFunnelContext): Record<string, string> {
-  return stringifyDetail({
-    purchase_funnel_id: context.purchaseFunnelId,
-    upgrade_source: context.upgradeSource,
-    entry_plan_status: context.entryPlanStatus,
-    entry_plan_level: context.entryPlanLevel,
-    entry_plan_list: context.entryPlanList,
-    purchase_audience: context.purchaseAudience,
-    provider_family: context.providerFamily,
-    channel: context.channel,
-  });
-}
-
 export function resolveCodingPlanProviderFamily(providerId: string): CodingPlanProviderFamily {
   if (
     providerId === BIGMODEL_PROVIDER_ID ||
@@ -215,15 +178,6 @@ export function resolveCodingPlanProviderFamily(providerId: string): CodingPlanP
 
 export function resolveCodingPlanChannel(providerFamily: CodingPlanProviderFamily): string {
   return { bigmodel: "MaaS", zai: "Z_AI", unknown: "" }[providerFamily];
-}
-
-export function stringifyDetail(detail: Record<string, unknown>): Record<string, string> {
-  return Object.fromEntries(
-    Object.entries(detail).map(([key, value]) => [
-      key,
-      value === undefined || value === null ? "" : String(value),
-    ]),
-  );
 }
 
 function isStartPlanProviderId(providerId: string): boolean {

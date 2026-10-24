@@ -409,7 +409,6 @@ export function WorkbenchLeafPane({
           paneId={paneId}
           readOnly={readOnly}
           sessionId={sessionId}
-          openTrigger={isPrimary ? "sidebar" : "split"}
           activeSelectionSideChatSessionId={resolvePaneActiveSelectionSideChatSessionId(
             sessionId,
             shell.activeSessionId ?? shell.sessionId,

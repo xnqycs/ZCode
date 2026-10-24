@@ -31,7 +31,6 @@ import {
 import { registerHostNetworkTelemetry, stopHostNetworkTelemetry } from "./hostNetworkTelemetry.js";
 import { registerHostServiceResourceTelemetry } from "./hostServiceResourceTelemetry.js";
 import { resolveResourceTelemetryEnvironmentKey } from "./hostResourceTelemetryEnvironment.js";
-import { reportHostSessionCreate } from "./hostSessionCreateTelemetry.js";
 import { createBrowserControlMainBridge } from "./browserControlMainBridge.js";
 import { materializeBrowserRecordingArtifact } from "./browserRecordingArtifactMaterializer.js";
 import {
@@ -808,15 +807,6 @@ async function dispatchOffPeakRun(request: OffPeakRunDispatchRequest): Promise<{
       sessionId: taskId,
     });
     lifecycle.admitted();
-    // 只有 init 实际新建；绑定首跑和跨票续跑只是原 Session 的后续输入。
-    if (dispatchKind === "init") {
-      reportHostSessionCreate(parentPort, {
-        sessionId: taskId,
-        messageId: traceId,
-        source: "automation_idle",
-        workspaceIdentity: request.workspaceIdentity,
-      });
-    }
     return { conversationId: taskId, sessionId: taskId, lifecycleManaged: true };
   } catch (error) {
     if (trackedKey) disposeOffPeakRunSubscription(trackedKey);
@@ -1106,15 +1096,6 @@ async function dispatchCronRun(request: CronRunDispatchRequest): Promise<{
       clientMode: "desktop-continuous",
       automationId: request.automationId,
     });
-    // prompt 创建的定时任务带 targetTaskId，追加原会话不能计成 session_create。
-    if (!request.targetTaskId) {
-      reportHostSessionCreate(parentPort, {
-        sessionId: task.taskId,
-        messageId: promptTraceId,
-        source: "automation_scheduled",
-        workspaceIdentity: request.workspaceIdentity,
-      });
-    }
     return { taskId: task.taskId, sessionId: task.taskId };
   } catch (error) {
     if (trackedKey) disposeCronRunSubscription(trackedKey);
@@ -3749,18 +3730,6 @@ parentPort.on("message", async (e: Electron.MessageEvent) => {
           log: (message, details) => logger.warn(message, details),
           establishOwner: () => {
             const initializedServices = createLocalServices({
-              reportPluginTelemetryEvent: (event) => {
-                parentPort?.postMessage({
-                  type: HostResponseTypes.PluginTelemetry,
-                  event: {
-                    ...event,
-                    context: {
-                      ...event.context,
-                      screenResolution: event.context.screenResolution || "unknown",
-                    },
-                  },
-                });
-              },
               resolveBotProjectConnection,
               resolveBotRemoteWorkspace: (workspace) =>
                 sourceServerDirectory

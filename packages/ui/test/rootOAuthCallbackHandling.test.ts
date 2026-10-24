@@ -1,4 +1,4 @@
-import { describe, expect, it, beforeEach, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
   BIGMODEL_PROVIDER_ID,
   BUILTIN_MODEL_PROVIDER_IDS,
@@ -6,16 +6,6 @@ import {
   type EnterpriseCodingPlanPricingProduct,
   type UsageEntitlementSnapshot,
 } from "@zcode/shared";
-
-const reportAppTelemetryEventMock = vi.fn(async () => {});
-const resolveProviderTelemetryLabelMock = vi.fn((providerId: string) =>
-  providerId === ZAI_PROVIDER_ID ? "z.ai" : "bigmodel",
-);
-
-vi.mock("@/lib/appTelemetry.js", () => ({
-  reportAppTelemetryEvent: reportAppTelemetryEventMock,
-  resolveProviderTelemetryLabel: resolveProviderTelemetryLabelMock,
-}));
 
 vi.mock("@/logger.js", () => ({
   logger: {
@@ -26,11 +16,6 @@ vi.mock("@/logger.js", () => ({
 }));
 
 describe("handleOAuthCallbackSuccess", () => {
-  beforeEach(() => {
-    reportAppTelemetryEventMock.mockClear();
-    resolveProviderTelemetryLabelMock.mockClear();
-  });
-
   it("应用登录回调会更新 user、清理错误并上报登录埋点", async () => {
     const { handleOAuthCallbackSuccess } = await import("@/root/useRootOAuthEffects.js");
     const setUser = vi.fn();
@@ -38,9 +23,6 @@ describe("handleOAuthCallbackSuccess", () => {
     const refreshProviderState = vi.fn(async () => {});
     const refreshLatestModelProviderFamilySelection = vi.fn(async () => null);
     const setProviderFamilyDomain = vi.fn(async () => {});
-    const platform = {
-      reportTelemetryEvent: vi.fn(async () => {}),
-    };
 
     await handleOAuthCallbackSuccess({
       result: {
@@ -52,7 +34,6 @@ describe("handleOAuthCallbackSuccess", () => {
           displayName: "BigModel User",
         },
       },
-      platform,
       refreshLatestModelProviderFamilySelection,
       refreshProviderState,
       setProviderFamilyDomain,
@@ -69,7 +50,6 @@ describe("handleOAuthCallbackSuccess", () => {
     expect(setProviderFamilyDomain).toHaveBeenCalledWith(BIGMODEL_PROVIDER_ID);
     expect(refreshLatestModelProviderFamilySelection).toHaveBeenCalledWith(BIGMODEL_PROVIDER_ID);
     expect(refreshProviderState).toHaveBeenCalledOnce();
-    expect(reportAppTelemetryEventMock).toHaveBeenCalledTimes(1);
   });
 
   it("连接域 CAS 冲突不能否定已经成功的 OAuth session", async () => {
@@ -85,7 +65,6 @@ describe("handleOAuthCallbackSuccess", () => {
           provider: BIGMODEL_PROVIDER_ID,
           userInfo: { id: "user-1", username: "user" },
         },
-        platform: { reportTelemetryEvent: vi.fn(async () => {}) },
         setProviderFamilyDomain: async () => {
           throw new Error("Account connection settings changed");
         },
@@ -99,7 +78,6 @@ describe("handleOAuthCallbackSuccess", () => {
     expect(setOAuthError).toHaveBeenCalledExactlyOnceWith(null);
     expect(refreshProviderState).toHaveBeenCalledOnce();
     expect(refreshLatestModelProviderFamilySelection).not.toHaveBeenCalled();
-    expect(reportAppTelemetryEventMock).toHaveBeenCalledOnce();
   });
 
   it("Provider Family 选择校正失败不应阻断 OAuth 登录成功态", async () => {
@@ -111,9 +89,6 @@ describe("handleOAuthCallbackSuccess", () => {
     const refreshLatestModelProviderFamilySelection = vi.fn(async () => {
       throw new Error("selection failed");
     });
-    const platform = {
-      reportTelemetryEvent: vi.fn(async () => {}),
-    };
 
     await expect(
       handleOAuthCallbackSuccess({
@@ -126,7 +101,6 @@ describe("handleOAuthCallbackSuccess", () => {
             displayName: "BigModel User",
           },
         },
-        platform,
         refreshLatestModelProviderFamilySelection,
         refreshProviderState,
         setProviderFamilyDomain,
@@ -144,7 +118,6 @@ describe("handleOAuthCallbackSuccess", () => {
     expect(setProviderFamilyDomain).toHaveBeenCalledWith(BIGMODEL_PROVIDER_ID);
     expect(refreshLatestModelProviderFamilySelection).toHaveBeenCalledWith(BIGMODEL_PROVIDER_ID);
     expect(refreshProviderState).toHaveBeenCalledOnce();
-    expect(reportAppTelemetryEventMock).toHaveBeenCalledTimes(1);
   });
 
   it("Team Plan 选择收敛后统一刷新 Provider Runtime", async () => {
@@ -168,9 +141,6 @@ describe("handleOAuthCallbackSuccess", () => {
       };
     });
     const setProviderFamilyDomain = vi.fn(async () => {});
-    const platform = {
-      reportTelemetryEvent: vi.fn(async () => {}),
-    };
 
     await handleOAuthCallbackSuccess({
       result: {
@@ -182,7 +152,6 @@ describe("handleOAuthCallbackSuccess", () => {
           displayName: "BigModel User",
         },
       },
-      platform,
       refreshLatestModelProviderFamilySelection,
       refreshAppSettings,
       refreshProviderState,
@@ -210,9 +179,6 @@ describe("handleOAuthCallbackSuccess", () => {
       return { kind: "individual-coding-plan" as const };
     });
     const setProviderFamilyDomain = vi.fn(async () => {});
-    const platform = {
-      reportTelemetryEvent: vi.fn(async () => {}),
-    };
 
     await handleOAuthCallbackSuccess({
       result: {
@@ -224,7 +190,6 @@ describe("handleOAuthCallbackSuccess", () => {
           displayName: "Z.ai User",
         },
       },
-      platform,
       refreshLatestModelProviderFamilySelection,
       refreshAppSettings,
       refreshProviderState,

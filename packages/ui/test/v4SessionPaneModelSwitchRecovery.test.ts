@@ -136,10 +136,6 @@ const modelTransitionMock = vi.hoisted(() => ({
   onAcquire: null as (() => void) | null,
 }));
 
-const sessionOpenTelemetryMock = vi.hoisted(() => ({
-  lastParams: null as null | { sessionId: string | null; enabled?: boolean },
-}));
-
 const mocks = vi.hoisted(() => ({
   highspeedCardService: {
     getSnapshot: vi.fn(async () => ({ card: null, nextDrawAt: null, drawing: false })),
@@ -312,12 +308,6 @@ vi.mock("@/hooks/useSettingService.js", () => ({
 
 vi.mock("@/v4/useConversationProjection.js", () => ({
   useConversationProjection: () => projectionState.current,
-}));
-
-vi.mock("@/v4/telemetry/useSessionOpenArmsTelemetry.js", () => ({
-  useSessionOpenArmsTelemetry: (params: { sessionId: string | null; enabled?: boolean }) => {
-    sessionOpenTelemetryMock.lastParams = params;
-  },
 }));
 
 vi.mock("@/v4/V4ConversationContext.js", () => ({
@@ -702,7 +692,6 @@ afterEach(() => {
   prewarmHookMock.lastEnabled = null;
   modelTransitionMock.listener = null;
   modelTransitionMock.onAcquire = null;
-  sessionOpenTelemetryMock.lastParams = null;
   projectionState.current = null;
   vi.useRealTimers();
   vi.clearAllMocks();
@@ -873,11 +862,6 @@ describe("SessionPane draft prewarm admission lifecycle", () => {
       expect(onSessionCreated).toHaveBeenCalledWith(prewarmSessionId);
 
       await rerenderPane(root, { sessionId: prewarmSessionId, onSessionCreated });
-      expect(sessionOpenTelemetryMock.lastParams).toMatchObject({
-        sessionId: prewarmSessionId,
-        enabled: false,
-      });
-
       const existingSnapshot = makeSnapshot();
       existingSnapshot.sessionId = existingSessionId;
       projectionState.current = {
@@ -887,10 +871,6 @@ describe("SessionPane draft prewarm admission lifecycle", () => {
       };
       prewarmHookMock.binding = null;
       await rerenderPane(root, { sessionId: existingSessionId, onSessionCreated });
-      expect(sessionOpenTelemetryMock.lastParams).toMatchObject({
-        sessionId: existingSessionId,
-        enabled: true,
-      });
     } finally {
       await act(async () => root.unmount());
     }
@@ -1005,10 +985,6 @@ describe("SessionPane draft prewarm admission lifecycle", () => {
         subscriptionId: "fallback-created-session-open-subscription",
       };
       await rerenderPane(root, { sessionId: createdSessionId, onSessionCreated });
-      expect(sessionOpenTelemetryMock.lastParams).toMatchObject({
-        sessionId: createdSessionId,
-        enabled: false,
-      });
     } finally {
       await act(async () => root.unmount());
     }

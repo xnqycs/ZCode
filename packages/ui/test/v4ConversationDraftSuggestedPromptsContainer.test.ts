@@ -25,7 +25,6 @@ const invalidateDraftSession = vi.hoisted(() => vi.fn());
 const listClientScenes = vi.hoisted(() => vi.fn());
 const loggerWarn = vi.hoisted(() => vi.fn());
 const toast = vi.hoisted(() => vi.fn());
-const reportTelemetryEvent = vi.hoisted(() => vi.fn());
 const dismissToast = vi.hoisted(() => vi.fn());
 const pluginOperationProgressListeners = new Map<
   string,
@@ -66,7 +65,7 @@ vi.mock("@/hooks/useSettingService.js", () => {
 });
 
 vi.mock("@/hooks/usePlatform.js", () => ({
-  usePlatform: () => ({ reportTelemetryEvent }),
+  usePlatform: () => ({}),
 }));
 
 vi.mock("@/lib/zcodeDraftSkillInvalidation.js", () => ({
@@ -312,8 +311,6 @@ describe("ConversationDraftSuggestedPromptsContainer", () => {
     let nextToastId = 1;
     toast.mockImplementation(() => nextToastId++);
     dismissToast.mockReset();
-    reportTelemetryEvent.mockReset();
-    reportTelemetryEvent.mockResolvedValue(undefined);
   });
 
   afterEach(() => {
@@ -407,52 +404,6 @@ describe("ConversationDraftSuggestedPromptsContainer", () => {
       useZCodeSessionStore.getState().getWorkspaceState(workspacePath).composerTextInsertRequest,
     ).toBeNull();
     expect(getPluginReferenceCatalog).not.toHaveBeenCalled();
-  });
-
-  it("reports a Desktop template click before plugin resolution", async () => {
-    const workspacePath = "/tmp/suggested-prompt-desktop-telemetry";
-    render(
-      createElement(ConversationDraftSuggestedPromptsContainer, {
-        workspacePath,
-        isDesktop: true,
-      }),
-    );
-
-    fireEvent.click(await screen.findByRole("button", { name: pluginLabel }));
-
-    expect(reportTelemetryEvent).toHaveBeenCalledOnce();
-    expect(reportTelemetryEvent).toHaveBeenCalledWith(
-      expect.objectContaining({
-        elementName: "prompt_template_ck",
-        eventRegion: "app.session",
-        eventType: "ck",
-        eventText: pluginLabel,
-        eventExtraDetail: {
-          template_id: "create-pdf",
-          template_prompt: pluginPrompt,
-        },
-      }),
-    );
-  });
-
-  it("does not report template clicks on non-Desktop surfaces", async () => {
-    const workspacePath = "/tmp/suggested-prompt-web-telemetry";
-    render(
-      createElement(ConversationDraftSuggestedPromptsContainer, {
-        workspacePath,
-        isDesktop: false,
-      }),
-    );
-
-    fireEvent.click(await screen.findByRole("button", { name: plainLabel }));
-
-    expect(reportTelemetryEvent).not.toHaveBeenCalled();
-    await waitFor(() =>
-      expect(
-        useZCodeSessionStore.getState().getWorkspaceState(workspacePath).composerTextInsertRequest
-          ?.text,
-      ).toBe(plainPrompt),
-    );
   });
 
   it("opens the Idle-time Automations tab without prefilling or navigating twice", async () => {
@@ -726,7 +677,6 @@ describe("ConversationDraftSuggestedPromptsContainer", () => {
 
     await waitFor(() =>
       expect(installPlugin).toHaveBeenCalledWith({
-        telemetry: { entry: "recommended_prompt", client_kind: "desktop" },
         workspacePath,
         workspaceIdentity,
         remoteSessionId: "remote-runtime",
@@ -899,7 +849,6 @@ describe("ConversationDraftSuggestedPromptsContainer", () => {
 
     await waitFor(() =>
       expect(setPluginEnabled).toHaveBeenCalledWith({
-        telemetry: { entry: "recommended_prompt", client_kind: "desktop" },
         workspacePath,
         pluginId: "document-skills@zcode-plugins-official",
         enabled: true,

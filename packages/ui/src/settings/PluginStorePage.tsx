@@ -1,6 +1,3 @@
-import { withPluginTelemetry } from "@zcode/services";
-import { usePlatform } from "@/hooks/usePlatform.js";
-import { reportAppTelemetryEvent } from "@/lib/appTelemetry.js";
 /* eslint-disable max-lines -- 插件商店容器统一编排列表/详情、市场源对话框、卸载确认、试用跳转与技能刷新收尾，集中维护保证交互一致。 */
 import { PluginAddMenu } from "@/conversation-workspace-target/PluginAddMenu.js";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -84,7 +81,6 @@ export function PluginStorePage({
   embedded = false,
   onBack,
 }: PluginStorePageProps) {
-  const platform = usePlatform();
   const { intl, locale } = useZCodeIntl();
   const { order: storeOrder, refresh: refreshStoreOrder } = usePluginStoreOrder();
   const { pluginManagementService, skillsService } = useServices();
@@ -123,17 +119,7 @@ export function PluginStorePage({
   const togglingPluginId = usePluginManagementStore((state) => state.togglingPluginId);
 
   const [view, setView] = useState<PluginStoreView>("store");
-  const operationService = useMemo(() => {
-    const telemetry = {
-      entry: embedded
-        ? ("side_pane_market" as const)
-        : view === "detail"
-          ? ("store_detail" as const)
-          : ("store_list" as const),
-      client_kind: isWebRemoteControl ? ("mobile" as const) : ("desktop" as const),
-    };
-    return withPluginTelemetry(pluginManagementService, telemetry);
-  }, [pluginManagementService, embedded, isWebRemoteControl, view]);
+  const operationService = pluginManagementService;
 
   const [detailPluginId, setDetailPluginId] = useState<string | null>(null);
   const [segment, setSegment] = useState<PluginStoreSegment>("public");
@@ -176,13 +162,7 @@ export function PluginStorePage({
       official &&
       claimMarketplaceAutoRefresh(ZCODE_OFFICIAL_PLUGIN_MARKETPLACE_ID, official.lastUpdated)
     ) {
-      void updateMarketplace(
-        ZCODE_OFFICIAL_PLUGIN_MARKETPLACE_ID,
-        withPluginTelemetry(pluginManagementService, {
-          trigger: "automatic",
-          client_kind: isWebRemoteControl ? "mobile" : "desktop",
-        }),
-      );
+      void updateMarketplace(ZCODE_OFFICIAL_PLUGIN_MARKETPLACE_ID, pluginManagementService);
     }
   }, [marketplaces, isWebRemoteControl, pluginManagementService, updateMarketplace]);
 
@@ -217,39 +197,6 @@ export function PluginStorePage({
         (workspaceIdentity?.trim() || workspacePath),
     );
   });
-  useEffect(() => {
-    const root = rootRef.current;
-    if (!root || view === "manage" || typeof IntersectionObserver === "undefined") return;
-    let visible = false;
-    const observer = new IntersectionObserver(([entry]) => {
-      const next = Boolean(entry?.isIntersecting);
-      if (next && !visible) {
-        void reportAppTelemetryEvent(
-          platform,
-          {
-            elementName: "plugin_discovery",
-            eventRegion: "app",
-            eventType: "view",
-            eventExtraDetail: {
-              schema_version: "1",
-              action: view === "detail" ? "detail_view" : "store_view",
-              entry: embedded
-                ? "side_pane_market"
-                : view === "detail"
-                  ? "store_detail"
-                  : "store_list",
-              client_kind: isWebRemoteControl ? "mobile" : "desktop",
-              ...(view === "detail" && detailPluginId ? { plugin_id: detailPluginId } : {}),
-            },
-          },
-          "plugin-discovery",
-        );
-      }
-      visible = next;
-    });
-    observer.observe(root);
-    return () => observer.disconnect();
-  }, [platform, view, detailPluginId, embedded, isWebRemoteControl]);
   useEffect(() => {
     if (embedded || marketingRequest?.target.page !== "plugin_marketplace") return;
     if (!isMarketingDestinationVisible) return;
@@ -778,24 +725,6 @@ export function PluginStorePage({
           }
           query={query}
           onQueryChange={setQuery}
-          onSearchSubmit={() => {
-            if (!query.trim()) return;
-            void reportAppTelemetryEvent(
-              platform,
-              {
-                elementName: "plugin_discovery",
-                eventRegion: "app",
-                eventType: "view",
-                eventExtraDetail: {
-                  schema_version: "1",
-                  action: "search",
-                  entry: embedded ? "side_pane_market" : "store_list",
-                  client_kind: isWebRemoteControl ? "mobile" : "desktop",
-                },
-              },
-              "plugin-discovery",
-            );
-          }}
           segment={segment}
           onSegmentChange={setSegment}
         />

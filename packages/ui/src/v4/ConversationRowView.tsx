@@ -99,8 +99,6 @@ import {
 import { ToolCallBlock } from "@/ToolCallBlocks.js";
 import { resolveWorkflowRunOpenToolCallId } from "@/v4/workflowRunCardJoin.js";
 import { useZCodeIntl } from "@/i18n/IntlProvider.js";
-import { useOptionalPlatform } from "@/hooks/usePlatform.js";
-import { reportAppTelemetryEvent } from "@/lib/appTelemetry.js";
 import { runUserAction, runUserActionAsync } from "@/lib/userActionTelemetry.js";
 import { logger } from "@/logger.js";
 import { PluginUiModelContextChip, formatPluginDisplayName } from "@/plugin-ui/index.js";
@@ -1483,7 +1481,6 @@ export const ConversationAssistantTextActions = memo(function ConversationAssist
   compactForRemoteControl = false,
   feedback = null,
   hookInvocations,
-  sessionId,
   turnId,
   sourceCommandIds = EMPTY_SOURCE_COMMAND_IDS,
   onFork,
@@ -1497,7 +1494,6 @@ export const ConversationAssistantTextActions = memo(function ConversationAssist
   compactForRemoteControl?: boolean;
   feedback?: AssistantMessageFeedback | null;
   hookInvocations?: readonly HookInvocationRow[];
-  sessionId?: string | null;
   turnId?: string;
   sourceCommandIds?: readonly string[];
   onFork?: (target: ConversationRowTarget) => void;
@@ -1506,7 +1502,6 @@ export const ConversationAssistantTextActions = memo(function ConversationAssist
   className?: string;
 }) {
   const { intl, locale } = useZCodeIntl();
-  const platform = useOptionalPlatform();
   const [localFeedback, setLocalFeedback] = useState<AssistantMessageFeedback | null>(feedback);
   const copyLabel = intl.formatMessage({ id: "chat.message.copy" });
   const likeLabel = intl.formatMessage({
@@ -1549,22 +1544,8 @@ export const ConversationAssistantTextActions = memo(function ConversationAssist
           },
         );
       }
-      if (platform && entityId) {
-        void reportAppTelemetryEvent(
-          platform,
-          {
-            elementName: "assistant_message_feedback",
-            eventRegion: "chat",
-            eventType: "ck",
-            eventExtraDetail: { reaction: resolvedFeedback ?? "none" },
-            ...(sessionId ? { talkId: sessionId } : {}),
-            messageId: entityId,
-          },
-          "ConversationRowView",
-        );
-      }
     },
-    [entityId, localFeedback, onFeedbackChange, platform, rowId, sessionId],
+    [entityId, localFeedback, onFeedbackChange, rowId],
   );
   const handleFork = useCallback(() => {
     if (entityId) {
@@ -1755,7 +1736,6 @@ const AssistantTextRowView = memo(function AssistantTextRowView({
           createdAt={row.createdAt}
           compactForRemoteControl={context.compactForRemoteControl}
           feedback={readAssistantFeedback(row)}
-          sessionId={context.sessionId}
           onFork={onFork}
           onRetry={onRetry}
           onFeedbackChange={onFeedbackChange}

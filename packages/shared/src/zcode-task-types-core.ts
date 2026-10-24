@@ -21,6 +21,9 @@ import type { ErrorAttribution } from "./zcode-protocol-v4/snapshot.js";
  * 跨 renderer、host process、ZCode agent service 使用的类型。
  */
 
+/** 首次创建 Session 的来源；用于任务归属，不是遥测维度。 */
+export type SessionCreateSource = "group" | "project" | "session";
+
 // ---- 可观测性 ----
 
 /** 全链路追踪 ID，用于日志和观测链路。 */

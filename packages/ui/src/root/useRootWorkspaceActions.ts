@@ -17,7 +17,6 @@ import type {
   RemoteConnectionOpenPreference,
 } from "@/app-shell/types.js";
 import { useConfirmDialog } from "@/hooks/useConfirmDialog.js";
-import { reportAppTelemetryEvent } from "@/lib/appTelemetry.js";
 import { resolveLogoutProviderFamilyDomain } from "@/lib/providerFamilyDomainSettings.js";
 import { isRendererReloadNavigation } from "@/lib/rendererNavigation.js";
 import { parseWslUncWorkspacePath } from "@/lib/wslUncWorkspace.js";
@@ -99,7 +98,6 @@ export function useRootWorkspaceActions({
   setOAuthError,
   setUser,
   onProviderFamilyDomainClearedAfterLogout,
-  userId,
   onOpenRemoteConnection,
   openRemoteProjectWorkspace,
   openMobileProjectDraft,
@@ -121,7 +119,6 @@ export function useRootWorkspaceActions({
   setOAuthError: (error: string | null) => void;
   setUser: (user: UserInfo | null) => void;
   onProviderFamilyDomainClearedAfterLogout?: () => void;
-  userId?: string;
   onOpenRemoteConnection?: (preference?: RemoteConnectionOpenPreference) => void;
   openRemoteProjectWorkspace?: (target: {
     hostId: string;
@@ -456,19 +453,6 @@ export function useRootWorkspaceActions({
       return;
     }
 
-    // Bug 原因：telemetry 是辅助链路；等待网络重试会延迟退出登录，甚至在旧的无超时实现里
-    // 无限阻塞主流程。这里只调度事件，Main 侧负责有界重试与退出 drain。
-    void reportAppTelemetryEvent(
-      platform,
-      {
-        elementName: "app_user_logout",
-        eventRegion: "app_profile",
-        eventType: "ck",
-        eventExtraDetail: {},
-        userId,
-      },
-      "Root",
-    );
     const settingsBeforeLogout = await services.settingService.get();
     const nextProviderFamilyDomain = resolveLogoutProviderFamilyDomain({
       currentDomain: settingsBeforeLogout.providerFamilyDomain,
@@ -503,7 +487,6 @@ export function useRootWorkspaceActions({
     setOAuthError,
     setUser,
     updateAppSettings,
-    userId,
   ]);
 
   const handleSelectProject = useCallback(

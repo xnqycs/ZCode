@@ -9,8 +9,6 @@ import {
   type HostAgentProcessSpawnedResponse,
   type HostCuaOperationStateResponse,
   type HostMcpTelemetryResponse,
-  type HostSessionCreateTelemetryResponse,
-  type HostPluginTelemetryResponse,
   type RemoteTarget,
   type TaskRealtimeHostDeliveryKind,
   type WorkspacePurpose,
@@ -187,8 +185,6 @@ export function spawnHostProcess(
     onAgentProcessReady?: (event: HostAgentProcessReadyResponse) => void;
     onAgentProcessSpawned?: (event: HostAgentProcessSpawnedResponse) => void;
     onMcpTelemetry?: (event: HostMcpTelemetryResponse) => void;
-    onPluginTelemetry?: (event: HostPluginTelemetryResponse) => void;
-    onSessionCreateTelemetry?: (event: HostSessionCreateTelemetryResponse) => void;
     onCuaOperationStateChanged?: (
       source: ElectronUtilityProcess,
       event: HostCuaOperationStateResponse,
@@ -357,16 +353,6 @@ export function spawnHostProcess(
 
     if (result.data.type === HostResponseTypes.McpTelemetry) {
       dependencies.onMcpTelemetry?.(result.data);
-      return;
-    }
-
-    if (result.data.type === HostResponseTypes.PluginTelemetry) {
-      dependencies.onPluginTelemetry?.(result.data);
-      return;
-    }
-
-    if (result.data.type === HostResponseTypes.SessionCreateTelemetry) {
-      dependencies.onSessionCreateTelemetry?.(result.data);
       return;
     }
 

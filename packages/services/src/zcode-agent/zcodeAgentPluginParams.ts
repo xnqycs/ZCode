@@ -13,20 +13,7 @@ export interface ZCodeAgentWorkspaceTarget {
   remoteSessionId?: string;
 }
 
-export interface ZCodeAgentPluginMutationTarget extends ZCodeAgentWorkspaceTarget {
-  /** 仅 Host 观测使用；不会传给 CLI。 */
-  telemetry?: {
-    entry?:
-      | "store_list"
-      | "store_detail"
-      | "side_pane_market"
-      | "recommended_prompt"
-      | "recommended_ui"
-      | "component_settings";
-    client_kind?: "desktop" | "mobile";
-    trigger?: "user" | "automatic" | "dependency" | "restore" | "sync";
-  };
-}
+export interface ZCodeAgentPluginMutationTarget extends ZCodeAgentWorkspaceTarget {}
 
 export interface ZCodeAgentPluginViewParams extends ZCodeAgentWorkspaceTarget {
   configScope?: "user" | "workspace";

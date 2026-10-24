@@ -62,7 +62,6 @@ import type {
   OpenInEditorOptions,
   RemoteTarget,
   TaskNotificationPayload,
-  TelemetryRendererContext,
   RendererActionTraceBatchV1,
   RendererActionTraceConfigV1,
   RendererHeapSample,
@@ -709,9 +708,7 @@ contextBridge.exposeInMainWorld("zcode", {
     ipcRenderer.send(PlatformChannels.OAuthRegisterState, payload),
   /** 注册 OAuth deep link 回调，返回 disposer */
   onOAuthCallback: (cb: (url: string) => void): (() => void) => {
-    const handler = createOAuthCallbackHandler(cb, () => {
-      ipcRenderer.send(PlatformChannels.OAuthCallbackHandled);
-    });
+    const handler = createOAuthCallbackHandler(cb);
     ipcRenderer.on(PlatformChannels.OAuthCallback, handler);
     return () => ipcRenderer.removeListener(PlatformChannels.OAuthCallback, handler);
   },
@@ -731,21 +728,6 @@ contextBridge.exposeInMainWorld("zcode", {
   },
   /** 通知 main process renderer 已就绪 */
   notifyRendererReady: () => ipcRenderer.send(PlatformChannels.RendererReady),
-  /** 同步 renderer telemetry 上下文到 main process */
-  syncTelemetryContext: (context: TelemetryRendererContext) =>
-    ipcRenderer.send(PlatformChannels.SyncTelemetryContext, context),
-  /** 通过 main process 统一上报业务 telemetry 事件 */
-  reportTelemetryEvent: (payload: {
-    context: TelemetryRendererContext;
-    elementName: string;
-    eventRegion: string;
-    eventType: string;
-    eventText?: string;
-    eventExtraDetail: Record<string, string>;
-    userId?: string;
-    talkId?: string;
-    messageId?: string;
-  }) => ipcRenderer.invoke(PlatformChannels.ReportTelemetryEvent, payload),
   /** 通过 main process 统一上报 ARMS 自定义事件 */
   reportArmsCustomEvent: (payload: {
     name: string;

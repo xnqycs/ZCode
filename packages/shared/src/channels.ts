@@ -23,8 +23,6 @@ import type {
   ArmsCustomEventPayload,
   ConfigureFinalArmsCustomEventE2ERequest,
   FinalArmsCustomEventE2EEntry,
-  RendererTelemetryEventPayload,
-  TelemetryRendererContext,
 } from "./telemetry.js";
 import type {
   RendererActionTraceBatchV1,
@@ -383,14 +381,8 @@ export const PlatformChannels = {
   PaymentCallback: "zcode:payment-callback",
   /** Main → Renderer：外部分享页请求导入 share code。 */
   ShareImport: "zcode:share-import",
-  /** Renderer → Main：OAuth 回调已处理完成，可继续后置启动流程 */
-  OAuthCallbackHandled: "zcode:oauth-callback-handled",
   /** Renderer → Main：renderer 已就绪，可接收缓存的 deep link */
   RendererReady: "zcode:renderer-ready",
-  /** Renderer → Main：同步当前 renderer 的 telemetry 上下文 */
-  SyncTelemetryContext: "zcode:sync-telemetry-context",
-  /** Renderer → Main：通过统一 telemetry 层上报业务事件 */
-  ReportTelemetryEvent: "zcode:report-telemetry-event",
   /** Renderer → Main：上报 ARMS 自定义事件 */
   ReportArmsCustomEvent: "zcode:report-arms-custom-event",
   /** Renderer → Main：读取 Renderer 用户操作 Trace 灰度配置。 */
@@ -701,9 +693,6 @@ export const HostResponseTypes = {
   McpTelemetry: "mcp-telemetry",
   McpResourceSamples: "mcp-resource-samples",
   ToolExecResource: "tool-exec-resource",
-  /** 自动化 Host 首次输入 accepted 后报告新建 Session。 */
-  SessionCreateTelemetry: "session-create-telemetry",
-  PluginTelemetry: "plugin-telemetry",
   /** host → main：资源管理器采样结果（按 requestId 关联） */
   ResourceUsageSnapshotResult: "resource-usage-snapshot-result",
   NetworkCaptureBatch: "network-capture-batch",
@@ -1085,20 +1074,8 @@ export interface PlatformChannelMap {
     request: { shareCode: string };
     response: void;
   };
-  [PlatformChannels.OAuthCallbackHandled]: {
-    request: void;
-    response: void;
-  };
   [PlatformChannels.RendererReady]: {
     request: void;
-    response: void;
-  };
-  [PlatformChannels.SyncTelemetryContext]: {
-    request: TelemetryRendererContext;
-    response: void;
-  };
-  [PlatformChannels.ReportTelemetryEvent]: {
-    request: RendererTelemetryEventPayload;
     response: void;
   };
   [PlatformChannels.ReportArmsCustomEvent]: {

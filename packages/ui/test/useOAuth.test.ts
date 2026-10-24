@@ -26,7 +26,6 @@ const mocks = vi.hoisted(() => ({
     openExternal: vi.fn(),
     registerOAuthState: vi.fn(),
   },
-  reportAppTelemetryEvent: vi.fn(async () => {}),
   setOAuthPollingActive: vi.fn(),
 }));
 
@@ -57,10 +56,6 @@ vi.mock("@/i18n/IntlProvider.js", () => ({
 
 vi.mock("@/logger.js", () => ({
   logger: mocks.logger,
-}));
-
-vi.mock("@/lib/appTelemetry.js", () => ({
-  reportAppTelemetryEvent: mocks.reportAppTelemetryEvent,
 }));
 
 interface OAuthProbeState {
@@ -158,7 +153,6 @@ describe("useOAuth", () => {
     mocks.oauthService.startOAuthWithPolling.mockReset();
     mocks.platform.openExternal.mockClear();
     mocks.platform.registerOAuthState.mockClear();
-    mocks.reportAppTelemetryEvent.mockClear();
     mocks.setOAuthPollingActive.mockClear();
   });
 
@@ -275,11 +269,6 @@ describe("useOAuth", () => {
       "https://chat.z.ai/api/oauth/authorize?state=flow-state",
     );
     expect(mocks.setOAuthPollingActive).toHaveBeenCalledWith(true);
-    expect(mocks.reportAppTelemetryEvent).toHaveBeenCalledWith(
-      mocks.platform,
-      expect.objectContaining({ eventExtraDetail: { login_url: "chat.z.ai" } }),
-      "useOAuth",
-    );
 
     act(() => {
       root.unmount();

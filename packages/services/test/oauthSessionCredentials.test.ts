@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { CREDENTIAL_DECRYPT_ERROR_CODE } from "@zcode/shared";
-import { createTelemetryUserIdLoader } from "../src/node.js";
+import { createOAuthSessionUserIdLoader } from "../src/node.js";
 import type { ICredentialService } from "../src/credential/credential.js";
 
 function createCredentialDecryptError(): Error & { code: typeof CREDENTIAL_DECRYPT_ERROR_CODE } {
@@ -9,8 +9,8 @@ function createCredentialDecryptError(): Error & { code: typeof CREDENTIAL_DECRY
   });
 }
 
-describe("createTelemetryUserIdLoader", () => {
-  it("keeps telemetry credential reads best effort when OAuth credentials cannot decrypt", async () => {
+describe("createOAuthSessionUserIdLoader", () => {
+  it("keeps session credential reads best effort when OAuth credentials cannot decrypt", async () => {
     vi.spyOn(console, "warn").mockImplementation(() => {});
     const deletedKeys: string[] = [];
     const credentialService: ICredentialService = {
@@ -26,7 +26,7 @@ describe("createTelemetryUserIdLoader", () => {
       },
     };
 
-    await expect(createTelemetryUserIdLoader(credentialService)()).resolves.toBe("");
+    await expect(createOAuthSessionUserIdLoader(credentialService)()).resolves.toBe("");
 
     expect(deletedKeys).toEqual([]);
   });

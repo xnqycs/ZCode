@@ -76,7 +76,6 @@ export function createDesktopPlatform(options: {
     onPaymentCallback: (callback) => window.zcode.onPaymentCallback(callback),
     onShareImport: (callback) => window.zcode.onShareImport?.(callback) ?? (() => {}),
     notifyRendererReady: () => window.zcode.notifyRendererReady(),
-    reportTelemetryEvent: (payload) => window.zcode.reportTelemetryEvent(payload),
     reportArmsCustomEvent: (payload) => {
       recordArmsCustomEventForE2E(payload);
       return window.zcode.reportArmsCustomEvent(payload);

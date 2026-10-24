@@ -46,14 +46,6 @@ export type {
   ConversationShareTurnPreflightResult,
   PublishTextConversationInput,
 } from "./conversation-share/conversationShare.js";
-// Conversation share 的具体实现依赖 Node 文件系统，只能从 @zcode/services/node 引入；
-// 根入口必须保持 browser-safe，避免 renderer 解析到 node:* 模块。
-export {
-  createConversationTelemetryService,
-  type ConversationTelemetryWorkspaceTarget,
-  type IConversationTelemetryService,
-} from "./conversation-telemetry/conversationTelemetry.js";
-
 // File service — IFileService is both a type (interface) and value (descriptor)
 export { IFileService } from "./file/file.js";
 export { IMediaPreviewService } from "./media-preview/mediaPreview.js";
@@ -282,7 +274,7 @@ export {
 // Plugins service — IPluginsService is both a type (interface) and value (descriptor)
 export { IPluginsService } from "./plugins/plugins.js";
 // 设置页插件管理薄服务（UI 平台能力面不再直触 zcodeAgentService）
-export { IPluginManagementService, withPluginTelemetry } from "./plugins/pluginManagement.js";
+export { IPluginManagementService } from "./plugins/pluginManagement.js";
 
 // Subagents service — ISubagentsService is both a type (interface) and value (descriptor)
 export { ISubagentsService } from "./subagents/subagents.js";

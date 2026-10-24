@@ -6,12 +6,13 @@
 import { ConversationProjectionStore } from "@/v4/conversationProjectionStore.js";
 import { ConversationRowPool } from "@/v4/conversationRowSharing.js";
 import { shouldExposeE2EStoreBridge } from "@/lib/e2eStoreBridge.js";
-import type { SessionOpenKind } from "@/lib/sessionOpenArmsTelemetry.js";
 import { conversationTopic, type ConversationTransport } from "@/v4/transport.js";
 import { logger } from "@/logger.js";
 import type { CommandsQueryParams, CommandsQueryResult } from "@zcode/shared/zcode-protocol-v4";
 
 /** pane 持有的租约；release 幂等。 */
+export type SessionOpenKind = "cold" | "warm" | "keep_warm";
+
 export interface SessionLease {
   readonly sessionId: string;
   readonly store: ConversationProjectionStore;

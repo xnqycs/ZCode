@@ -126,10 +126,6 @@ export function OffPeakNewTaskEntry({ onOpenAutomations }: OffPeakNewTaskEntryPr
     const materialized = materializeOffPeakTemplateDraft(template, locale);
     const draft: OffPeakCreateDraft = {
       ...(template.customize ? {} : { title: materialized.title, prompt: materialized.prompt }),
-      telemetrySource: {
-        eventRegion: "app.session",
-        templateId: template.id,
-      },
     };
     setPendingCreateDraft(draft);
     onOpenAutomations?.();

@@ -40,7 +40,6 @@ import {
   ipcMain,
   MessageChannelMain,
   nativeImage,
-  net,
   protocol,
   session,
   shell,
@@ -54,10 +53,8 @@ import { homedir, hostname } from "node:os";
 import {
   createCredentialService,
   createSettingService,
-  createTelemetryCore,
-  createTelemetryMarketingParamsLoader,
-  createTelemetryUserIdLoader,
-  createTelemetryAuthorizationLoader,
+  createOAuthSessionUserIdLoader,
+  createOAuthSessionAuthorizationLoader,
   buildRuntimeProcessEnvPatch,
   captureLoginShellEnvSnapshot,
   getConversationWorkspaceDir,
@@ -87,14 +84,12 @@ import {
   resolveZCodeEndpointOrigin,
   shouldEnableE2ETestBridge,
   type UpdateStatePayload,
-  type TelemetryEventPayload,
   HostMessageTypes,
   InternalChannels,
 } from "@zcode/shared";
 import { logger, webRemoteControlRelayLogger } from "./logger.js";
 import { markMainLaunchAppReady } from "./desktopLaunchMarks.js";
 import { createCuaPipFocusRouter, resolveCuaPipWindowKey } from "./cuaPipFocusRouter.js";
-import { createDesktopTelemetryFetch } from "./desktopTelemetryFetch.js";
 import {
   acknowledgePostUpdateReleaseNotes,
   getAutoUpdaterState,
@@ -109,9 +104,6 @@ import {
 } from "./autoUpdater.js";
 import { BroadcastHub } from "./broadcastHub.js";
 import { TaskRealtimeBus } from "./taskRealtimeBus.js";
-import { createAppLaunchGate } from "./appLaunchGate.js";
-import { createAppLaunchCoordinator } from "./appLaunchCoordinator.js";
-import { createAppTelemetryRuntime } from "./appTelemetryRuntime.js";
 import { createRendererActionTraceBroker } from "./rendererActionTraceBroker.js";
 import { createRendererActionTraceExporter } from "./rendererActionTraceExporter.js";
 import { registerRendererActionTraceIpc } from "./rendererActionTraceIpc.js";
@@ -714,9 +706,6 @@ const UPDATE_STATUS_WINDOW_READY_HEIGHT = UPDATE_STATUS_WINDOW_PROGRESS_HEIGHT -
 const UPDATE_STATUS_WINDOW_TRAFFIC_LIGHT_POSITION = { x: 10, y: 10 } as const;
 const mainSettingService = createSettingService();
 const webRemoteControlCredentialService = createCredentialService();
-const appLaunchGate = createAppLaunchGate();
-const appLaunchCoordinator = createAppLaunchCoordinator(appLaunchGate);
-const appTelemetryCredentialService = createCredentialService();
 async function resolveCurrentZCodeEndpointOrigin() {
   return resolveZCodeEndpointOrigin({
     env: ZCODE_ENV,
@@ -770,54 +759,14 @@ function awaitFirstHostSpawnDecision(): Promise<void> {
   })();
   return firstHostSpawnDecisionPromise;
 }
-const appTelemetryCore = createTelemetryCore({
-  loadUserId: createTelemetryUserIdLoader(appTelemetryCredentialService),
-  loadAuthorization: createTelemetryAuthorizationLoader(appTelemetryCredentialService),
-  loadMarketingParams: createTelemetryMarketingParamsLoader(appTelemetryCredentialService),
-  resolveZCodeEndpointOrigin: resolveCurrentZCodeEndpointOrigin,
-  fetchImpl: createDesktopTelemetryFetch({
-    fetch: (input, init) => net.fetch(input instanceof URL ? input.toString() : input, init),
-  }),
-});
-const appTelemetryRuntime = createAppTelemetryRuntime({
-  telemetryCore: appTelemetryCore,
-  appLaunchCoordinator,
-});
-
-function reportRemoteUsageEventForRenderer(rendererId: number, event: TelemetryEventPayload): void {
-  const context =
-    appTelemetryRuntime.getRendererContext(rendererId) ??
-    appTelemetryRuntime.getLatestRendererContext();
-  if (!context) {
-    logger.warn("[remote-usage-telemetry] renderer context unavailable", {
-      elementName: event.elementName,
-      rendererId,
-    });
-    return;
-  }
-  // 最终失败由 TelemetryCore 统一记录一条脱敏告警；这里仅隔离远程连接主链路。
-  void appTelemetryCore.reportEvent({ context, ...event }).catch(() => {});
-}
-
-function syncAppTelemetryInteractiveState(): void {
-  appTelemetryRuntime.setInteractive(
-    getApplicationWindowsExcludingCuaIndicator().some(
-      (win) => !win.isDestroyed() && win.isVisible() && win.isFocused(),
-    ),
-  );
-  // 登出/切号发生在 host 子进程，主进程无即时信号；窗口聚焦时兜底刷新 ARMS user.name
-  void armsUserIdentitySync.refresh();
-}
-
 app.on("browser-window-focus", (_event, win) => {
-  syncAppTelemetryInteractiveState();
+  void armsUserIdentitySync.refresh();
   rebuildMenu();
   // 设置/更新等无 Host 的 ZCode 窗口也算前台：router 会先把旧 workspace Host 清成 null，
   // 再把无 Host 的新窗口事实静默丢弃，避免旧会话 PiP 继续显示。
   cuaPipFocusRouter.focusWindow(resolveCuaPipWindowKey(win));
 });
 app.on("browser-window-blur", (_event, win) => {
-  syncAppTelemetryInteractiveState();
   cuaPipFocusRouter.blurWindow(resolveCuaPipWindowKey(win));
 });
 app.on("browser-window-created", (_event, win) => {
@@ -837,8 +786,8 @@ const remoteSessionManager = createRemoteWorkspaceSessionManager({
 });
 
 // 复用既有只读账号入口；HTTP 由 main 的 Node fetch 执行，不触发 host OAuth 登出。
-const loadRemoteControlUserId = createTelemetryUserIdLoader(webRemoteControlCredentialService);
-const loadRemoteControlAuthorization = createTelemetryAuthorizationLoader(
+const loadRemoteControlUserId = createOAuthSessionUserIdLoader(webRemoteControlCredentialService);
+const loadRemoteControlAuthorization = createOAuthSessionAuthorizationLoader(
   webRemoteControlCredentialService,
 );
 const webRemoteControlSharedHostAttachments = createWebRemoteControlSharedHostAttachments({
@@ -1006,16 +955,6 @@ const webRemoteControlManager = createWebRemoteControlManager({
         "mobile-navigation-superseded",
         requestId,
       );
-  },
-  reportRendererTelemetryEvent: (event) => {
-    void appTelemetryCore.reportEvent(event).catch(() => {});
-  },
-  reportRemoteUsageEvent: (windowId, event) => {
-    const win = BrowserWindow.fromId(windowId);
-    if (!win || win.webContents.isDestroyed()) {
-      return;
-    }
-    reportRemoteUsageEventForRenderer(win.webContents.id, event);
   },
   onStatusChanged: (windowId, status) => {
     sendWebRemoteControlStatusChangedToWindow(BrowserWindow.fromId(windowId), status);
@@ -1217,9 +1156,6 @@ async function prepareAppQuit(reason: string, kind: AppShutdownKind = "normal"):
   appQuitPreparationInFlight = Promise.all([
     // 退出屏障结束后再启动窗口尺寸写入，可能在 app.exit 前留下 setting.json.lock。
     // 尺寸已在 resize 防抖或最大化状态变化时保存，退出屏障不再创建新的尺寸写入。
-    // 修复原因：Main 过去不会等待仍在发送的 /event/report，正常退出也会直接丢事件。
-    // 与其它 owner 并行进入既有屏障，最多等待 2 秒，避免 telemetry 串行放大退出预算。
-    appTelemetryCore.flushPendingReports({ timeoutMs: 2_000 }),
     localTtftExporter.shutdown(),
     rendererActionTraceBroker.shutdown().catch((error) => {
       logger.warn(`[app-quit] renderer action trace shutdown failed (${reason}):`, error);
@@ -1908,12 +1844,6 @@ function createWindowInstance(startupBootstrap: StartupWindowBootstrap = {}) {
           onAgentProcessSpawned: (event) => reportAgentProcessStartToArms(event, logger),
           onMcpTelemetry: (message) =>
             reportMcpTelemetryToArms(message.event, message.runtimeSurface),
-          onPluginTelemetry: (message) => {
-            void appTelemetryCore.reportEvent(message.event).catch(() => {});
-          },
-          onSessionCreateTelemetry: (message) => {
-            void appTelemetryCore.reportEvent(message.event).catch(() => {});
-          },
           onCronRunResult: forwardCronRunResult,
           onOffPeakRunResult: forwardOffPeakRunResult,
           onCronSchedulerWakeRequested: wakeCronScheduler,
@@ -2411,12 +2341,6 @@ app.whenReady().then(async () => {
 
   registerRemoteIpcHandlers({
     logger,
-    appTelemetryRuntime,
-    onOAuthCallbackHandledSideEffect: () => {
-      void armsUserIdentitySync.refresh();
-    },
-    appTelemetryCore,
-    reportRemoteUsageEvent: reportRemoteUsageEventForRenderer,
     armsCustomContext: {
       deviceMid,
       platform: process.platform,

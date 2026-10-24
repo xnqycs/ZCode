@@ -66,15 +66,6 @@ function createOptions(): RemoteIpcOptions {
       warn: vi.fn(),
       error: vi.fn(),
     },
-    appTelemetryRuntime: {
-      onRendererReady: vi.fn(),
-      syncRendererContext: vi.fn(),
-      onOAuthCallbackHandled: vi.fn(),
-    },
-    appTelemetryCore: {
-      reportEvent: vi.fn(async () => {}),
-    },
-    reportRemoteUsageEvent: vi.fn(),
     armsCustomContext: {
       deviceMid: "device-mid",
       platform: "darwin",
