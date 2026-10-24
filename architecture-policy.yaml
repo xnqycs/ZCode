@@ -732,6 +732,20 @@ modules:
     layers:
       ui: .
     owner: conversation
+  # services-device：deviceMid 唯一所有者，替代 telemetryCore 内的身份生成逻辑
+  - id: services-device
+    roots:
+      - packages/services/src/device
+    managed: true
+    requires:
+      - services
+      - shared
+    publicEntrypoints:
+      - packages/services/src/device/index.ts
+      - packages/services/src/device/contract.ts
+    layers:
+      adapters: .
+    owner: runtime
 
 global:
   # 临时时间戳（2026-09-10）：unmanaged-new-file 只约束此日期之后首次入库的文件。

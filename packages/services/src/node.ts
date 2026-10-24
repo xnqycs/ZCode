@@ -176,8 +176,9 @@ export { createFileWatcherService } from "./fileWatcher/fileWatcherService.js";
 export { createOAuthService } from "./oauth/oauthService.js";
 export { createOAuthProviderLogoutHandler } from "./oauth/oauthProviderLogout.js";
 export { OAuthCredentialRepo } from "./oauth/repo/oauthCredentialRepo.js";
-export { createTelemetryCore, ensureTelemetryDeviceMid } from "./telemetry/telemetryCore.js";
-export type { EnsureTelemetryDeviceMidOptions } from "./telemetry/telemetryCore.js";
+export { createTelemetryCore } from "./telemetry/telemetryCore.js";
+export { ensureDeviceMid } from "./device/index.js";
+export type { EnsureDeviceMidOptions } from "./device/index.js";
 export type { AccountRequestAuthResolver } from "./model-provider/accountProviderRequestAuthService.js";
 export { createAccountProviderCredentialStore } from "./model-provider/accountProviderCredentialStore.js";
 export type {

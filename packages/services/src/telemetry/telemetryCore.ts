@@ -11,12 +11,16 @@ import {
   type TelemetryRendererContext,
   type OAuthLoginAttribution,
 } from "@zcode/shared";
-import { mkdir, open, readFile, stat, unlink, writeFile } from "node:fs/promises";
 import { createHash } from "node:crypto";
 import { version } from "node:os";
-import { dirname, join } from "node:path";
 import { createServiceLogger } from "#src/logger/serviceLogger.js";
-import { getAppConfigDir } from "../paths.js";
+import {
+  ensureDeviceMid,
+  withDeviceStateLock,
+  writeDeviceState,
+  type DeviceState,
+} from "../device/deviceMid.js";
+import type { EnsureDeviceMidOptions } from "../device/contract.js";
 
 const REPORT_ENDPOINT = ZCODE_TELEMETRY_REPORT_ENDPOINT;
 
@@ -31,9 +35,6 @@ function sessionCreateEventId(userId: string, sessionId: string): string {
   return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
 }
 
-const LOCK_RETRY_DELAY_MS = 10;
-const LOCK_RETRY_COUNT = 200;
-const LOCK_STALE_MS = 5 * 60 * 1000;
 const DAILY_ACTIVE_IN_FLIGHT_TTL_MS = 5 * 60 * 1000;
 const REPORT_REQUEST_TIMEOUT_MS = 5_000;
 const REPORT_RETRY_DELAY_MS = 300;
@@ -82,21 +83,13 @@ class TelemetryReportError extends Error {
   }
 }
 
-interface TelemetryState {
+type TelemetryState = DeviceState & {
   lastDailyActiveDate?: string;
-  deviceMid?: string;
   dailyActiveInFlight?: {
     date: string;
     startedAt: number;
   };
-}
-
-interface TelemetryLockOwner {
-  pid: number;
-  createdAt: number;
-}
-
-const deviceMidCacheByStateFile = new Map<string, Promise<string>>();
+};
 
 function normalizeOsCategory(platform: NodeJS.Platform): string {
   switch (platform) {
@@ -123,20 +116,6 @@ function toLocalDateKey(timestamp: number, timeZone: string): string {
   return `${year}-${month}-${day}`;
 }
 
-function resolveTelemetryStateFile(homeDir?: string): string {
-  if (homeDir) {
-    return join(homeDir, ".zcode", "v2", "telemetry-state.json");
-  }
-  return join(getAppConfigDir(), "telemetry-state.json");
-}
-
-function resolveTelemetryLockFile(homeDir?: string): string {
-  if (homeDir) {
-    return join(homeDir, ".zcode", "v2", "telemetry-state.lock");
-  }
-  return join(getAppConfigDir(), "telemetry-state.lock");
-}
-
 function isFreshDailyActiveInFlight(
   value: TelemetryState["dailyActiveInFlight"],
   date: string,
@@ -147,190 +126,6 @@ function isFreshDailyActiveInFlight(
   }
 
   return timestamp - value.startedAt < DAILY_ACTIVE_IN_FLIGHT_TTL_MS;
-}
-
-async function readTelemetryState(homeDir?: string): Promise<TelemetryState> {
-  try {
-    const raw = await readFile(resolveTelemetryStateFile(homeDir), "utf-8");
-    const parsed = JSON.parse(raw) as TelemetryState;
-    return typeof parsed === "object" && parsed ? parsed : {};
-  } catch {
-    return {};
-  }
-}
-
-async function writeTelemetryState(state: TelemetryState, homeDir?: string): Promise<void> {
-  const telemetryStateFile = resolveTelemetryStateFile(homeDir);
-  await mkdir(dirname(telemetryStateFile), { recursive: true });
-  await writeFile(telemetryStateFile, JSON.stringify(state, null, 2), "utf-8");
-}
-
-async function sleep(ms: number): Promise<void> {
-  await new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-async function removeStaleTelemetryLockIfNeeded(
-  lockFile: string,
-  timestamp: number,
-): Promise<boolean> {
-  try {
-    const metadata = await stat(lockFile);
-    if (timestamp - metadata.mtimeMs < LOCK_STALE_MS) {
-      const owner = await readTelemetryLockOwner(lockFile);
-      if (!owner || isProcessAlive(owner.pid)) {
-        return false;
-      }
-    }
-
-    await unlink(lockFile).catch(() => {});
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-async function readTelemetryLockOwner(lockFile: string): Promise<TelemetryLockOwner | null> {
-  try {
-    const raw = await readFile(lockFile, "utf-8");
-    const parsed = JSON.parse(raw) as Partial<TelemetryLockOwner>;
-    if (
-      typeof parsed.pid === "number" &&
-      Number.isInteger(parsed.pid) &&
-      parsed.pid > 0 &&
-      typeof parsed.createdAt === "number" &&
-      Number.isFinite(parsed.createdAt)
-    ) {
-      return {
-        pid: parsed.pid,
-        createdAt: parsed.createdAt,
-      };
-    }
-  } catch {
-    return null;
-  }
-
-  return null;
-}
-
-function isProcessAlive(pid: number): boolean {
-  try {
-    process.kill(pid, 0);
-    return true;
-  } catch (error) {
-    return (
-      error instanceof Error && "code" in error && (error as NodeJS.ErrnoException).code !== "ESRCH"
-    );
-  }
-}
-
-async function withTelemetryStateLock<T>(
-  homeDir: string | undefined,
-  run: (state: TelemetryState) => Promise<T>,
-): Promise<T> {
-  const lockFile = resolveTelemetryLockFile(homeDir);
-  await mkdir(dirname(lockFile), { recursive: true });
-
-  for (let attempt = 0; attempt < LOCK_RETRY_COUNT; attempt += 1) {
-    try {
-      const handle = await open(lockFile, "wx");
-      try {
-        // Bugfix: 旧锁文件只有一个空文件，崩溃后 5 分钟内无法判断是否为孤儿锁。
-        // 新锁写入 owner pid，让后续进程能安全回收“刚残留但持有进程已退出”的锁。
-        await handle.writeFile(
-          JSON.stringify({
-            pid: process.pid,
-            createdAt: Date.now(),
-          }),
-          "utf-8",
-        );
-        const state = await readTelemetryState(homeDir);
-        return await run(state);
-      } finally {
-        await handle.close();
-        await unlink(lockFile).catch(() => {});
-      }
-    } catch (error) {
-      const isLockConflict =
-        error instanceof Error &&
-        "code" in error &&
-        (error as NodeJS.ErrnoException).code === "EEXIST";
-      if (!isLockConflict) {
-        throw error;
-      }
-
-      // Bugfix: 崩溃/强退后 telemetry-state.lock 可能遗留在磁盘上，后续所有启动都会直接卡死到超时。
-      // 这里按 mtime 识别明显过期的孤儿锁并自动回收，避免用户目录里一个陈旧空文件把上报永久锁死。
-      const removedStaleLock = await removeStaleTelemetryLockIfNeeded(lockFile, Date.now());
-      if (removedStaleLock) {
-        continue;
-      }
-
-      await sleep(LOCK_RETRY_DELAY_MS);
-    }
-  }
-
-  throw new Error("Telemetry state lock timeout");
-}
-
-export interface EnsureTelemetryDeviceMidOptions {
-  homeDir?: string;
-  randomUUID?: () => string;
-}
-
-function rememberDeviceMid(telemetryStateFile: string, deviceMid: string): string {
-  deviceMidCacheByStateFile.set(telemetryStateFile, Promise.resolve(deviceMid));
-  return deviceMid;
-}
-
-/** 调用方必须已持有 telemetry-state.lock；只在 state 缺失 deviceMid 时生成并写回。 */
-async function ensureDeviceMidInLockedState(
-  state: TelemetryState,
-  options: EnsureTelemetryDeviceMidOptions,
-): Promise<string> {
-  const telemetryStateFile = resolveTelemetryStateFile(options.homeDir);
-  if (state.deviceMid) {
-    return rememberDeviceMid(telemetryStateFile, state.deviceMid);
-  }
-
-  // device_mid 独立生成，不再复用首条事件的 eventId：让它表达「设备标识」而非
-  // 「某次上报」，并与 ARMS 侧（desktopDeviceMid）读取的同一字段保持同值。
-  const deviceMid = (options.randomUUID ?? createUuid)();
-  state.deviceMid = deviceMid;
-  await writeTelemetryState(state, options.homeDir);
-  return rememberDeviceMid(telemetryStateFile, deviceMid);
-}
-
-/**
- * 确保 telemetry-state.json 里存在 deviceMid 并返回它。
- *
- * Bug 根因：远端 zcode-server 所在主机没有 Desktop main 进程，过去没有任何进程会在那里写
- * telemetry-state.json；buildZCodeSourceHeaders() 又只读不生成，于是远端发往 ZCode endpoint 的
- * 请求永远缺 X-Device-Mid，billing/balance 被服务端拒绝为 parameter error，Start Plan 在远程
- * 工作区被判成未开通。这里把 telemetry 上报内部的 ensure 逻辑抽成独立入口，供远端 server 启动时
- * 调用：同一个文件、同一个字段、同一把 telemetry-state.lock，与同机 CLI 得到同一个设备身份。
- */
-export function ensureTelemetryDeviceMid(
-  options: EnsureTelemetryDeviceMidOptions = {},
-): Promise<string> {
-  const telemetryStateFile = resolveTelemetryStateFile(options.homeDir);
-  const cached = deviceMidCacheByStateFile.get(telemetryStateFile);
-  if (cached) {
-    return cached;
-  }
-
-  // Bugfix: message_completion / agent_step 等高频埋点之前每条都抢 telemetry-state.lock，
-  // 即使 deviceMid 已经落盘也会在 burst 场景里把 2 秒锁等待打满。这里按 state 文件缓存
-  // deviceMid 的读取 promise，只在首次缺失或首次读取时进入文件锁。
-  const pending = withTelemetryStateLock(options.homeDir, async (state) =>
-    ensureDeviceMidInLockedState(state, options),
-  ).catch((error) => {
-    if (deviceMidCacheByStateFile.get(telemetryStateFile) === pending) {
-      deviceMidCacheByStateFile.delete(telemetryStateFile);
-    }
-    throw error;
-  });
-  deviceMidCacheByStateFile.set(telemetryStateFile, pending);
-  return pending;
 }
 
 export function createTelemetryCore(dependencies: TelemetryCoreDependencies = {}) {
@@ -346,9 +141,15 @@ export function createTelemetryCore(dependencies: TelemetryCoreDependencies = {}
   const platform = dependencies.platform ?? process.platform;
   const osVersion = dependencies.osVersion ?? version();
   const requestTimeoutMs = dependencies.requestTimeoutMs ?? REPORT_REQUEST_TIMEOUT_MS;
-  const retrySleep = dependencies.sleep ?? sleep;
+  const retrySleep =
+    dependencies.sleep ??
+    (async (ms: number) => {
+      const { promise, resolve } = Promise.withResolvers<void>();
+      setTimeout(resolve, ms);
+      await promise;
+    });
   const pendingReports = new Set<Promise<void>>();
-  const deviceMidOptions: EnsureTelemetryDeviceMidOptions = {
+  const deviceMidOptions: EnsureDeviceMidOptions = {
     homeDir: dependencies.homeDir,
     randomUUID,
   };
@@ -562,7 +363,7 @@ export function createTelemetryCore(dependencies: TelemetryCoreDependencies = {}
             input.elementName === "session_create" && input.talkId
               ? sessionCreateEventId(userId, input.talkId)
               : randomUUID();
-          const deviceMid = await ensureTelemetryDeviceMid(deviceMidOptions);
+          const deviceMid = await ensureDeviceMid(deviceMidOptions);
 
           await sendReport(
             {
@@ -589,7 +390,7 @@ export function createTelemetryCore(dependencies: TelemetryCoreDependencies = {}
         (async () => {
           const eventId = randomUUID();
           const userId = await loadUserId();
-          const deviceMid = await ensureTelemetryDeviceMid(deviceMidOptions);
+          const deviceMid = await ensureDeviceMid(deviceMidOptions);
 
           await sendReport(
             {
@@ -614,31 +415,33 @@ export function createTelemetryCore(dependencies: TelemetryCoreDependencies = {}
           const timestamp = now();
           const today = toLocalDateKey(timestamp, context.clientTimezone);
           const userId = await loadUserId();
-          const pendingReport = await withTelemetryStateLock(
-            dependencies.homeDir,
-            async (state) => {
-              if (state.lastDailyActiveDate === today) {
-                return null;
-              }
+          const pendingReport = await withDeviceStateLock(dependencies.homeDir, async (state) => {
+            const telemetryState = state as TelemetryState;
+            if (telemetryState.lastDailyActiveDate === today) {
+              return null;
+            }
 
-              if (isFreshDailyActiveInFlight(state.dailyActiveInFlight, today, timestamp)) {
-                return null;
-              }
+            if (isFreshDailyActiveInFlight(telemetryState.dailyActiveInFlight, today, timestamp)) {
+              return null;
+            }
 
-              const eventId = randomUUID();
-              const deviceMid = await ensureDeviceMidInLockedState(state, deviceMidOptions);
-              // Bugfix: 之前 reportAppDailyActive 会在持锁状态下直接执行网络请求。
-              // 启动期 app_launch / app_daily_active / reportEvent 一旦并发，后来的调用会一直卡在锁外，
-              // 最终稳定打出 "Telemetry state lock timeout"。这里改成短锁写入 in-flight 标记，
-              // 锁外发送网络请求，成功后再短锁提交完成态，既保留跨实例去重，也不再把整个 telemetry 通道锁死。
-              state.dailyActiveInFlight = {
-                date: today,
-                startedAt: timestamp,
-              };
-              await writeTelemetryState(state, dependencies.homeDir);
-              return { eventId, deviceMid };
-            },
-          );
+            const eventId = randomUUID();
+            const deviceMid =
+              typeof telemetryState.deviceMid === "string" && telemetryState.deviceMid
+                ? telemetryState.deviceMid
+                : randomUUID();
+            // 之前 reportAppDailyActive 会在持锁状态下直接执行网络请求。
+            // 启动期 app_launch / app_daily_active / reportEvent 一旦并发，后来的调用会一直卡在锁外，
+            // 最终稳定打出 "Device state lock timeout"。这里改成短锁写入 in-flight 标记，
+            // 锁外发送网络请求，成功后再短锁提交完成态，既保留跨实例去重，也不再把设备状态锁死。
+            telemetryState.deviceMid = deviceMid;
+            telemetryState.dailyActiveInFlight = {
+              date: today,
+              startedAt: timestamp,
+            };
+            await writeDeviceState(telemetryState, dependencies.homeDir);
+            return { eventId, deviceMid };
+          });
 
           if (!pendingReport) {
             return;
@@ -659,21 +462,23 @@ export function createTelemetryCore(dependencies: TelemetryCoreDependencies = {}
               pendingReport.deviceMid,
             );
           } catch (error) {
-            await withTelemetryStateLock(dependencies.homeDir, async (state) => {
-              if (state.dailyActiveInFlight?.date === today) {
-                delete state.dailyActiveInFlight;
-                await writeTelemetryState(state, dependencies.homeDir);
+            await withDeviceStateLock(dependencies.homeDir, async (state) => {
+              const telemetryState = state as TelemetryState;
+              if (telemetryState.dailyActiveInFlight?.date === today) {
+                delete telemetryState.dailyActiveInFlight;
+                await writeDeviceState(telemetryState, dependencies.homeDir);
               }
             });
             throw error;
           }
 
-          await withTelemetryStateLock(dependencies.homeDir, async (state) => {
-            state.lastDailyActiveDate = today;
-            if (state.dailyActiveInFlight?.date === today) {
-              delete state.dailyActiveInFlight;
+          await withDeviceStateLock(dependencies.homeDir, async (state) => {
+            const telemetryState = state as TelemetryState;
+            telemetryState.lastDailyActiveDate = today;
+            if (telemetryState.dailyActiveInFlight?.date === today) {
+              delete telemetryState.dailyActiveInFlight;
             }
-            await writeTelemetryState(state, dependencies.homeDir);
+            await writeDeviceState(telemetryState, dependencies.homeDir);
           });
         })(),
       );

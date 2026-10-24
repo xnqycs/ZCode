@@ -4,11 +4,12 @@ import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { setDataBaseDir } from "../src/paths.js";
 import { buildZCodeSourceHeaders } from "../src/providers/sourceHeaders.js";
-import { createTelemetryCore, ensureTelemetryDeviceMid } from "../src/telemetry/telemetryCore.js";
+import { createTelemetryCore } from "../src/telemetry/telemetryCore.js";
+import { ensureDeviceMid } from "../src/device/deviceMid.js";
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
-describe("ensureTelemetryDeviceMid", () => {
+describe("ensureDeviceMid", () => {
   const tempDirs: string[] = [];
 
   function createIsolatedDataBaseDir(): { dataBaseDir: string; stateFile: string } {
@@ -34,7 +35,7 @@ describe("ensureTelemetryDeviceMid", () => {
     expect(existsSync(stateFile)).toBe(false);
     expect(buildZCodeSourceHeaders()["X-Device-Mid"]).toBeUndefined();
 
-    const deviceMid = await ensureTelemetryDeviceMid();
+    const deviceMid = await ensureDeviceMid();
 
     expect(deviceMid).toMatch(UUID_PATTERN);
     expect(JSON.parse(readFileSync(stateFile, "utf-8"))).toEqual({ deviceMid });
@@ -52,7 +53,7 @@ describe("ensureTelemetryDeviceMid", () => {
     );
     writeFileSync(stateFile, existing, "utf-8");
 
-    await expect(ensureTelemetryDeviceMid()).resolves.toBe("existing-device-mid");
+    await expect(ensureDeviceMid()).resolves.toBe("existing-device-mid");
 
     expect(readFileSync(stateFile, "utf-8")).toBe(existing);
   });
@@ -66,8 +67,8 @@ describe("ensureTelemetryDeviceMid", () => {
     });
 
     const [first, second] = await Promise.all([
-      ensureTelemetryDeviceMid({ homeDir: dataBaseDir }),
-      ensureTelemetryDeviceMid({ homeDir: dataBaseDir }),
+      ensureDeviceMid({ homeDir: dataBaseDir }),
+      ensureDeviceMid({ homeDir: dataBaseDir }),
     ]);
     await core.reportAppLaunch({
       clientLanguage: "zh-CN",

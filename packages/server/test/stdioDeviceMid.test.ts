@@ -17,13 +17,13 @@ describe("ensureRemoteServerDeviceMid", () => {
   it("确保失败时记录原因并继续启动，不抛错也不伪造设备 ID", async () => {
     const log = vi.fn();
     const ensureDeviceMid = vi.fn(async () => {
-      throw new Error("Telemetry state lock timeout");
+      throw new Error("Device state lock timeout");
     });
 
     await expect(ensureRemoteServerDeviceMid({ ensureDeviceMid, log })).resolves.toBeUndefined();
 
     expect(log).toHaveBeenCalledTimes(1);
     expect(String(log.mock.calls[0]?.[0])).toContain("X-Device-Mid");
-    expect(String(log.mock.calls[0]?.[1])).toContain("Telemetry state lock timeout");
+    expect(String(log.mock.calls[0]?.[1])).toContain("Device state lock timeout");
   });
 });

@@ -2,6 +2,7 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync }
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { ensureDeviceMid } from "@zcode/services/node";
 import { ensureDesktopDeviceMidSync } from "../src/main/desktopDeviceMid.js";
 
 const tempDirs: string[] = [];
@@ -63,7 +64,10 @@ describe("ensureDesktopDeviceMidSync", () => {
     const dir = makeTempDir();
     writeFileSync(
       join(dir, "telemetry-state.json"),
-      JSON.stringify({ lastDailyActiveDate: "2026-06-23", dailyActiveInFlight: { date: "x", startedAt: 1 } }),
+      JSON.stringify({
+        lastDailyActiveDate: "2026-06-23",
+        dailyActiveInFlight: { date: "x", startedAt: 1 },
+      }),
       "utf-8",
     );
 
@@ -75,46 +79,26 @@ describe("ensureDesktopDeviceMidSync", () => {
     expect(state.dailyActiveInFlight).toEqual({ date: "x", startedAt: 1 });
   });
 
-  it("与数仓侧（telemetryCore）读到同一个 device_mid", async () => {
-    const dir = makeTempDir();
-    const generated = ensureDesktopDeviceMidSync({
-      configDir: dir,
-      createId: () => "shared-device-uuid",
-    });
-
-    // telemetryCore 用 homeDir 定位 state 文件：{homeDir}/.zcode/v2/telemetry-state.json
-    // 让该路径正好等于本测试的 configDir，验证两侧读同一字段。
+  it("与 services ensureDeviceMid 双向读到同一个 device_mid", async () => {
     const home = makeTempDir();
     const sharedDir = join(home, ".zcode", "v2");
     mkdirSync(sharedDir, { recursive: true });
-    writeFileSync(
-      join(sharedDir, "telemetry-state.json"),
-      JSON.stringify({ deviceMid: generated }),
-      "utf-8",
-    );
 
-    const { createTelemetryCore } = await import("@zcode/services/node");
-    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(new Response(null, { status: 204 }));
-    const service = createTelemetryCore({
-      homeDir: home,
-      fetchImpl: fetchMock,
-      randomUUID: () => "unrelated-event-id",
-    }) as {
-      reportAppLaunch(input: {
-        clientTimezone: string;
-        clientLanguage: string;
-        screenResolution: string;
-      }): Promise<void>;
-    };
-
-    await service.reportAppLaunch({
-      clientTimezone: "Asia/Shanghai",
-      clientLanguage: "zh-CN",
-      screenResolution: "3024x1964",
+    // Desktop 同步 writer 先生成，services 读取同一文件与字段。
+    const desktopMid = ensureDesktopDeviceMidSync({
+      configDir: sharedDir,
+      createId: () => "shared-device-uuid",
     });
+    await expect(ensureDeviceMid({ homeDir: home })).resolves.toBe(desktopMid);
 
-    const body = JSON.parse(String(fetchMock.mock.calls[0]![1]!.body));
-    expect(body.device_mid).toBe("shared-device-uuid");
+    // services 生成后，Desktop 同步 reader 也读到同一个值。
+    const secondHome = makeTempDir();
+    const secondSharedDir = join(secondHome, ".zcode", "v2");
+    const servicesMid = await ensureDeviceMid({
+      homeDir: secondHome,
+      randomUUID: () => "services-device-uuid",
+    });
+    expect(ensureDesktopDeviceMidSync({ configDir: secondSharedDir })).toBe(servicesMid);
   });
 
   it("JSON 损坏时视作缺失，生成新 UUID 不抛", () => {
