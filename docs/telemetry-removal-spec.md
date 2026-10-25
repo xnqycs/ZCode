@@ -10,15 +10,16 @@
 
 ## 2. 移除范围
 
-| 通道 | 入口 |
-| --- | --- |
-| ARMS RUM（main） | `@arms/rum-electron`、`appARMSBootstrap`、stability / resource / network / MCP / data-size 上报 |
-| ARMS RUM（renderer） | `reportArmsCustomEvent`、`uiPerfArmsTelemetry`、`chatErrorBannerTelemetry`、`reactErrorArmsTelemetry`、`sessionOpenArmsTelemetry`、`sendFunnelArmsTelemetry`、`planUsageArmsTelemetry` |
-| `/event/report` | `TelemetryCore`、`appTelemetry`、`messageTelemetry`、onboarding / automation / off-peak / coding-plan funnel、`session_create`、plugin lifecycle / usage |
-| Conversation 上报 | `ConversationTelemetrySupervisor`、`ConversationTelemetryAttachment`、parity E2E |
-| CLI Agent OTel | `apps/zcode-cli/packages/telemetry`、span / metric schema、打包期 OTLP 注入 |
-| Host / RPC 遥测 | `host*ResourceTelemetry`、`hostNetworkTelemetry`、RPC network telemetry middleware、MCP telemetry tracker |
-| 移动端中继 | web-remote-control 的 telemetry-report 转发 |
+| 通道                   | 入口                                                                                                                                                                                   |
+| ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| ARMS RUM（main）       | `@arms/rum-electron`、`appARMSBootstrap`、stability / resource / network / MCP / data-size 上报                                                                                        |
+| ARMS RUM（renderer）   | `reportArmsCustomEvent`、`uiPerfArmsTelemetry`、`chatErrorBannerTelemetry`、`reactErrorArmsTelemetry`、`sessionOpenArmsTelemetry`、`sendFunnelArmsTelemetry`、`planUsageArmsTelemetry` |
+| `/event/report`        | `TelemetryCore`、`appTelemetry`、`messageTelemetry`、onboarding / automation / off-peak / coding-plan funnel、`session_create`、plugin lifecycle / usage                               |
+| Conversation 上报      | `ConversationTelemetrySupervisor`、`ConversationTelemetryAttachment`、parity E2E                                                                                                       |
+| CLI Agent OTel         | `apps/zcode-cli/packages/telemetry`、span / metric schema、打包期 OTLP 注入                                                                                                            |
+| Host / RPC 遥测        | `host*ResourceTelemetry`、`hostNetworkTelemetry`、RPC network telemetry middleware、MCP telemetry tracker                                                                              |
+| 移动端中继             | web-remote-control 的 telemetry-report 转发                                                                                                                                            |
+| ARMS 自定义事件 E2E 桥 | preload 的 `__zcodeFinalArmsCustomEventsE2E`、`shouldEnableE2ETestBridge` 判定                                                                                                         |
 
 构建期 `ZCODE_ARMS_RUM_ENDPOINT`、`ZCODE_TELEMETRY_REPORT_ENDPOINT`、`ZCODE_PACKAGED_AGENT_OTEL_*`
 只服务于上述通道，随代码一并移除。
@@ -86,8 +87,8 @@ V4 `ConversationTelemetryFact` 通道保留，供 server 侧 task activity 使�
 3. feedback 提交成功；远控配对 URL 仍带 `mid`。
 4. 资源管理器有数据；crash archive 与 memory 日志仍写入；usage stats 正常。
 5. CLI `zcode` 启动、对话、subagent、workflow 正常；provider 请求头 `x-zcode-session-type` 不变。
-6. `pnpm typecheck`、`pnpm lint`、`pnpm fmt:check`、`pnpm architecture:check --changed`、
-   `pnpm knip` 与目标单测 / E2E 通过。
+6. `pnpm typecheck`（含 desktop preload 项目）、`pnpm lint`、`pnpm fmt:check`、
+   `pnpm architecture:check --changed`、`pnpm knip` 与目标单测 / E2E 通过。
 7. 构建产物中不存在 `@arms/rum-electron`、`@opentelemetry`（保留的本地 TTFT 代码除外）、
    `/event/report`、`ZCODE_TELEMETRY_REPORT_ENDPOINT`。
 
