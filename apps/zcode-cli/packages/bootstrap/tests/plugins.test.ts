@@ -195,6 +195,17 @@ describe("ZCode plugins", () => {
     }
   });
 
+  it("declares workspace isolation for every document viewer MCP server", async () => {
+    const packagesRoot = fileURLToPath(new URL("../../", import.meta.url));
+
+    for (const name of ["documents", "pdf", "presentations", "spreadsheets"]) {
+      const manifest = JSON.parse(
+        await readFile(join(packagesRoot, `${name}-plugin`, ".zcode-plugin", "plugin.json"), "utf8"),
+      ) as { mcpServers?: Record<string, { isolation?: string }> };
+      expect(manifest.mcpServers?.[name]?.isolation, name).toBe("workspace");
+    }
+  });
+
   it("declares the ui component type exactly for bundled plugins with UI surfaces", async () => {
     const packagesRoot = fileURLToPath(new URL("../../", import.meta.url));
 
