@@ -233,11 +233,6 @@ export { IUsageStatsService } from "./usage-stats/usageStats.js";
 // StorageRootSpec 随契约再导出：desktop 的 Worker 协议按 contract.ts 的口径只从 services 入口取类型。
 export type { IStorageService, StorageRootSpec } from "./storage/contract.js";
 
-// CodingPlanSubscription service — ICodingPlanSubscriptionService is both a type (interface) and value (descriptor)
-export {
-  ICodingPlanSubscriptionService,
-  type OffPeakClientConfig,
-} from "./coding-plan-subscription/codingPlanSubscription.js";
 export {
   IClientScenesService,
   type ClientSceneConfig,

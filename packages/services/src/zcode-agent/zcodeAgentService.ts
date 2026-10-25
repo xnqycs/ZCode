@@ -50,7 +50,11 @@ import type {
   ProviderSource,
 } from "@zcode/provider";
 import { completeNewModelSelection } from "@zcode/provider";
-import type { OffPeakClientConfig } from "#src/coding-plan-subscription/codingPlanSubscription.js";
+interface OffPeakClientConfig {
+  readonly enabled: boolean;
+  readonly modelSelectionView: ModelSelectionView;
+  readonly codingPlanActive?: boolean;
+}
 import {
   subagentRuntimeConfigSchema,
   zcodeSubagentsReadRuntimeConfigParamsSchema,

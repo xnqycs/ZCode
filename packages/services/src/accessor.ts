@@ -31,7 +31,6 @@ import type {
   IProviderSettingsService,
 } from "./model-provider/providerFacadeServices.js";
 import type { IUsageStatsService } from "./usage-stats/usageStats.js";
-import type { ICodingPlanSubscriptionService } from "./coding-plan-subscription/codingPlanSubscription.js";
 import type { IClientConfigService } from "./client-config/clientConfig.js";
 import type { IClientScenesService } from "./client-scenes/clientScenes.js";
 import type { ISkillsService } from "./skills/skills.js";
@@ -93,7 +92,6 @@ export interface IServiceAccessor {
   /** 仅桌面窗口 Host 的 base attachment 注册；远端 / Web 不提供。 */
   readonly sourceServerManagementService?: ISourceServerManagementService;
   readonly usageStatsService: IUsageStatsService;
-  readonly codingPlanSubscriptionService: ICodingPlanSubscriptionService;
   readonly clientConfigService: IClientConfigService;
   readonly clientScenesService: IClientScenesService;
   /** 闲时任务管理（独立服务面）。 */

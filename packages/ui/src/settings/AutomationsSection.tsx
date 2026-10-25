@@ -1225,8 +1225,9 @@ export function AutomationsSection({
         );
         if (!updated) {
           toast(intl.formatMessage({ id: "offPeak.error.generic" }));
+          return false;
         }
-        return updated;
+        return true;
       }
 
       const result = await offPeakCreate(input, offPeakTaskService);
@@ -1270,7 +1271,7 @@ export function AutomationsSection({
           editing={editingTask}
           initialDraft={view.mode === "offpeak-create" ? (view.draft ?? null) : null}
           modelSelectionView={
-            offPeakGrayConfig?.modelSelectionView ?? { revision: 0, providers: [] }
+            { revision: 0, providers: [] }
           }
           defaultWorkspacePath={workspacePath ?? ""}
           defaultWorkspaceIdentity={workspaceIdentity}
