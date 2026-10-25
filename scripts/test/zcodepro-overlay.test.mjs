@@ -24,6 +24,31 @@ const HELPER_ENTRY_LF = [
   "",
 ].join("\n");
 const HELPER_ENTRY_CRLF = HELPER_ENTRY_LF.replaceAll("\n", "\r\n");
+const VENDOR_SOURCE_LF = [
+  'var OFFICIAL_CUA_FRAME_INTEGRITY_META_KEY = "zcode/fixture-frame-integrity";',
+  'var CUA_REQUEST_ACCESS_STATUS_META_KEY = "zcode.cua/request-access-status-v1";',
+  "var cuaRequestAccessStatusSchema = external_exports3.object({});",
+  "function readCuaRequestAccessStatus(platform, report) { return void 0; }",
+  "function attachCuaRequestAccessStatusMeta(result) { return result; }",
+  "",
+].join("\n");
+const FRAME_CONTRACT_SOURCE_LF = [
+  'import { OFFICIAL_CUA_FRAME_INTEGRITY_META_KEY } from "./vendor/dist-index.js";',
+  "",
+  "export { OFFICIAL_CUA_FRAME_INTEGRITY_META_KEY };",
+  'export const OFFICIAL_CUA_FRAME_MODEL_CONTENT_PROTECTION = "official_cua_frame_v1";',
+  "",
+].join("\n");
+const REQUEST_ACCESS_CONTRACT_SOURCE_LF = [
+  "export {",
+  "  CUA_REQUEST_ACCESS_STATUS_META_KEY,",
+  "  cuaRequestAccessStatusSchema,",
+  "  readCuaRequestAccessStatus,",
+  '} from "./vendor/dist-index.js";',
+  "",
+].join("\n");
+const PLACEHOLDER_FRAME_CONTRACT =
+  'export const OFFICIAL_CUA_FRAME_INTEGRITY_META_KEY = "zcode/fixture-frame-integrity";\n';
 
 function sha256(bytes) {
   return createHash("sha256").update(bytes).digest("hex");
@@ -88,7 +113,15 @@ async function createZcodeProFixture(root, options = {}) {
     join(producerRoot, "broker-server.d.ts"),
     "export declare const broker: boolean;\n",
   );
-  await writeText(join(producerRoot, "vendor", "dist-index.js"), "export const vendor = 1;\r\n");
+  await writeText(join(producerRoot, "frame-contract.js"), FRAME_CONTRACT_SOURCE_LF);
+  await writeText(
+    join(producerRoot, "request-access-contract.js"),
+    REQUEST_ACCESS_CONTRACT_SOURCE_LF,
+  );
+  await writeText(
+    join(producerRoot, "vendor", "dist-index.js"),
+    VENDOR_SOURCE_LF.replaceAll("\n", "\r\n"),
+  );
 
   await writeJson(join(helperRoot, "package.json"), {
     name: "@zcode/zcode-cua-helper-runtime",
@@ -169,6 +202,19 @@ async function createRepoFixture(root, options = {}) {
   await writeText(
     join(cuaRoot, "vitest.config.ts"),
     'import { defineConfig } from "vitest/config";\n\nexport default defineConfig({});\n',
+  );
+  await writeText(join(cuaRoot, "placeholder", "frame-contract.js"), PLACEHOLDER_FRAME_CONTRACT);
+  await writeText(
+    join(cuaRoot, "placeholder", "request-access-contract.js"),
+    'export const CUA_REQUEST_ACCESS_STATUS_META_KEY = "zcode.cua/request-access-status-v1";\n',
+  );
+  await writeText(
+    join(cuaRoot, "frame-contract.js"),
+    'export * from "./placeholder/frame-contract.js";\n',
+  );
+  await writeText(
+    join(cuaRoot, "request-access-contract.js"),
+    'export * from "./placeholder/request-access-contract.js";\n',
   );
   await writeText(join(cuaRoot, "index.js"), "export const runtime = 'placeholder';\n");
   await writeText(join(cuaRoot, "index.d.ts"), "export declare const runtime: string;\n");
@@ -277,7 +323,7 @@ test("apply publishes the ZcodePro runtime and keeps the fork entry points", asy
     HELPER_ENTRY_LF,
   );
   const vendor = await readFile(join(f.cuaRoot, "vendor", "dist-index.js"), "utf8");
-  assert.equal(vendor, "export const vendor = 1;\n");
+  assert.equal(vendor, VENDOR_SOURCE_LF);
   const addon = await readFile(join(f.cuaRoot, "build", "Release", "ax_native.node"));
   assert.equal(sha256(addon), sha256(x64PeBuffer()));
 
@@ -530,6 +576,7 @@ test("check reports alignment and never writes", async (t) => {
     env: WINDOWS_X64_ENV,
   });
   assert.equal(clean.applied, false);
+  assert.equal(clean.agentContracts.derivable, false);
   assert.equal(clean.producer.version, "0.6.5");
   assert.equal(clean.documentPlugins.length, 4);
   assert.deepEqual(clean.warnings, []);
@@ -542,6 +589,12 @@ test("check reports alignment and never writes", async (t) => {
     env: WINDOWS_X64_ENV,
   });
   assert.equal(applied.applied, true);
+  assert.equal(applied.agentContracts.derivable, true);
+  assert.equal(
+    applied.agentContracts.frameIntegrityKey,
+    applied.agentContracts.placeholderFrameIntegrityKey,
+  );
+  assert.deepEqual(applied.warnings, []);
 
   const mismatched = await createFixture(t);
   const stale = await checkOverlay({
@@ -561,6 +614,33 @@ test("check reports alignment and never writes", async (t) => {
   assert.deepEqual(stale.warnings, []);
   assert.equal(warned.warnings.length, 1);
   assert.match(warned.warnings[0], /documents/);
+});
+
+test("check reports agent contract derivation and warns on placeholder constant drift", async (t) => {
+  const f = await createFixture(t);
+  await applyOverlay({ repoRoot: f.repoRoot, zcodeproDir: f.zcodeproDir, env: WINDOWS_X64_ENV });
+  const aligned = await checkOverlay({
+    repoRoot: f.repoRoot,
+    zcodeproDir: f.zcodeproDir,
+    env: WINDOWS_X64_ENV,
+  });
+  assert.equal(aligned.agentContracts.derivable, true);
+  assert.equal(aligned.agentContracts.frameIntegrityKey, "zcode/fixture-frame-integrity");
+  assert.equal(aligned.agentContracts.constantMatchesPlaceholder, true);
+
+  await writeText(
+    join(f.cuaRoot, "placeholder", "frame-contract.js"),
+    'export const OFFICIAL_CUA_FRAME_INTEGRITY_META_KEY = "zcode/drifted";\n',
+  );
+  const drifted = await checkOverlay({
+    repoRoot: f.repoRoot,
+    zcodeproDir: f.zcodeproDir,
+    env: WINDOWS_X64_ENV,
+  });
+  assert.equal(drifted.agentContracts.derivable, true);
+  assert.equal(drifted.agentContracts.constantMatchesPlaceholder, false);
+  assert.equal(drifted.warnings.length, 1);
+  assert.match(drifted.warnings[0], /frame integrity key/);
 });
 
 test("check rejects unsupported targets and does not write", async (t) => {
@@ -616,6 +696,7 @@ test("CLI applies, checks and reverts a fixture checkout", async (t) => {
 
   const checked = await run(["--check"]);
   assert.match(checked.stdout, /overlay: applied/);
+  assert.match(checked.stdout, /agent contracts: derivable/);
   assert.match(checked.stdout, /document plugins aligned/);
 
   await assert.rejects(
