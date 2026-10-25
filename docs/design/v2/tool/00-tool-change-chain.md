@@ -27,16 +27,6 @@ SHR08 缓存回归：Core tool message 的 cacheControl → Adapter tool-result 
 → AI SDK 合并 tool messages → Anthropic 对应 tool_result.cache_control。标记跟随原结果块，
 避免 SDK 合并时丢弃后续 message providerOptions；工具 schema、正文和状态合同不变。
 
-2026-09-15 Bash 慢命令资源遥测：执行适配器 spawn 后每 15 秒按 PGID 采样，根退出或 stop 结算时
-通过独立 `process/toolExecResource` 通知交 Host / main 即时上报；前后台共用同一采样器，最多 20 次，
-Windows 只取结束上下文。工具 schema、权限、输出、超时、V4 与 continuous/replayable 投影不变。
-测试覆盖 PRT-010/011/012、执行适配器退出分类与 Bash 一致性。详见 `docs/monitoring/process-resource-telemetry.md`。
-
-2026-09-15 复审修复：Bash 完成资源通知增加可选随机 `completionToken`，CLI 在单命令资源 owner
-生成，services / Host 原样转发，main 以有界近期集合去重后投影 ARMS 白名单。同一完成事实跨连接、
-跨 window Host 只上报一次；不同命令指标相同仍分别上报。标识不含命令、路径或 session/task 信息，
-不进入 ARMS、日志或任何 V4 行；旧 CLI 缺字段时保留原事件行为。工具输出、权限与执行节拍不变。
-
 ## Todo151：Plan 独立状态
 
 Enter/ExitPlanMode 的 Port、返回 Schema、handler、权限校验、拒绝／反馈、已有 reminder 与

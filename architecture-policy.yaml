@@ -913,4 +913,5 @@ exceptions:
       - apps/zcode-cli/packages/bootstrap/src/zcode-protocol/runtime-cleanup.ts
       - apps/zcode-cli/packages/cli/src/tui-prompt-handler-runtime.ts
       - packages/shared/src/processResource.ts
-    reason: Telemetry removal moves the model attribution contract and keeps only local MCP process/resource data; module ownership and boundaries are unchanged, adopting the full CLI and shared directories is out of scope.
+      - packages/desktop/src/main/processResourceRoleClassifier.ts
+    reason: Telemetry removal moves the model attribution contract and keeps only local MCP process/resource data; module ownership and boundaries are unchanged, adopting the full CLI, shared and desktop directories is out of scope.

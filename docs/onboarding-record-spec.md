@@ -292,14 +292,3 @@ memoryEnabled`，推荐区内容随之切换。约定：
 - record 的职业是非枚举字符串（职业列表会演进），回填前经 `appSettingsOccupationEnum`
   窄化，未知值落 `other`。
 - 当前用户无记录时不改 settings；同步失败仅 warn 日志。
-
-## 7. 上传预留（待服务端接口确定后实现）
-
-引导曝光及结束的公共行为埋点另见 [用户引导埋点 Spec](monitoring/onboarding-telemetry.md)。
-该事件上传结束时的选择快照（包括第三页跳过时的勾选状态），不等同于本地记录上传，
-也不改变本记录的跳过字段置 null 规则或 uploadState。埋点模式使用 work/code，
-本地 interfaceMode 继续使用 office/coding；身份字段复用公共 telemetry 的 user_id/device_mid。
-
-- payload = 文件内 `uploadState === "pending"` 的 entries + deviceMid；`decisions` 不上传；
-- 上传成功后将对应 entry 置为 `uploaded`；
-- 触发时机待定（启动补报 / 登录后上报）。

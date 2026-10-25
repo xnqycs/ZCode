@@ -94,7 +94,7 @@ hooks 从可执行配置中剥离（一律忽略）；本 MR 在此之上建立�
 
 - Windows：trust store rename 重试、e2e Docker admit / CI 分片（`run-windows-e2e-shards.mjs`）。
 - e2e spec 人工 review 后走 `e2e:promote` 转正式目录并更新 matrix 路径。
-- staging 上游既有 6 个单测失败（appARMSBootstrap minified pattern / feedback base 断言 /
+- staging 上游既有 6 个单测失败（feedback base 断言 /
   onRuntimeLifecycle mock）与本 MR 无关，需另行修复。
 
 ## 4.5 伴生的 v4 并发修复（评审说明）

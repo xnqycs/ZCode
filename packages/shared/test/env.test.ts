@@ -10,14 +10,14 @@ describe("shared runtime env", () => {
     vi.unstubAllGlobals();
   });
 
-  it("构建期可选能力未注入时关闭", async () => {
+  it("构建期自动更新未注入时关闭", async () => {
     const env = await importFreshEnvModule();
 
-    // 单测不注入 ARMS 与自动更新。
+    // 单测不注入自动更新。
     expect(env.ZCODE_AUTO_UPDATE_ENABLED).toBe(false);
   });
 
-  it("未注入 ZCODE_ENV 时默认 test 并映射为 local", async () => {
+  it("未注入 ZCODE_ENV 时默认 test", async () => {
     vi.stubGlobal("__ZCODE_ENV__", undefined);
 
     const env = await importFreshEnvModule();

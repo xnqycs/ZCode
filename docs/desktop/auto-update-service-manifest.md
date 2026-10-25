@@ -20,7 +20,7 @@ GET /api/v1/releases/electron/manifest
 | ------------ | ------------------- | -------------------------------------------------------------------------------- |
 | `platform`   | `X-Platform`        | `darwin-aarch64` 等发布服务平台名；服务端也兼容 `win32-x64` 这类 Node 风格平台名 |
 | `channel`    | `X-Release-Channel` | 标准通道 `1`；抢先体验/preview 通道 `3`                                          |
-| `device_mid` | `X-Device-Mid`      | 桌面端 telemetry 复用的 uuidv4 风格设备 ID                                       |
+| `device_mid` | `X-Device-Mid`      | 桌面端共享的设备身份 ID                                       |
 
 响应体保持 electron-builder 生成的 `latest*.yml` 格式，例如：
 

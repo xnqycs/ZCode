@@ -1,3 +1,5 @@
+> 产品遥测已移除：本文件中的 ARMS、`/event/report`、TelemetryCore 与 CLI Agent OTel 场景仅作历史记录，不再执行或维护。
+
 # Conversation Session E2E Coverage Matrix
 
 ## 项目与任务草稿生命周期（PD，2026-10-16）
@@ -2042,7 +2044,7 @@ controlled-stream，其余字段组合由 golden/fake-clock tests 承担。
 
 `TDP01-TDP19` 是 `TEL01-TEL09` 的原子化执行 case，完整 setup/action/assert、剪枝、provider 等价类、
 最终捕获点和 diff 规则见
-[`conversation-telemetry-differential-regression-plan.md`](conversation-telemetry-differential-regression-plan.md)。
+已移除的 conversation telemetry 差分回归计划。
 2026-07-18 的 `20260718-tdp-all-final` 已为 TDP01-TDP19 每条生成旧版/current 双 Electron 最终
 payload capture 与独立 diff。`verified-dual` 表示 `/event/report` 与 main ARMS 已完成双版本认证，
 不表示 pending spec 已晋升 formal。

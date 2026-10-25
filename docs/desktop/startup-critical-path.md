@@ -155,7 +155,7 @@ pending
 补充约束：
 
 1. `syncWindowTabs`、`syncWebRemoteControlWorkspaces`、Web 远控 task 索引和依赖完整 workspace 集合的
-   telemetry scope，只能在 `complete` 后消费 tabs。桌面仍是 `desktop-continuous`，手机仍是
+   tabs scope，只能在 `complete` 后消费 tabs。桌面仍是 `desktop-continuous`，手机仍是
    `web-remote-replayable`；这里不引入新的 replay/snapshot 状态。
 2. 用户若在 `active-ready` 到 `complete` 之间关闭启动 active tab，补齐必须把该关闭视为本窗口用户意图，
    不得从旧的持久化快照把它重新加入。期间新开的 workspace/settings tab 与当前焦点仍需保留。

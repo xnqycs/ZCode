@@ -35,7 +35,7 @@ Capability Node ── semantic relationship ──> Capability Node
 ## 命名规则
 
 - 能力群、节点和 owner 统一使用“中文（English）”，中文是主要识别文本，现有英文名称保留在全角括号中。
-- MCP、OAuth、CLI、UI、CDP、CUA、ARMS 等产品缩写不强制翻译，但仍应补足中文语义。
+- MCP、OAuth、CLI、UI、CDP、CUA、TTFT 等产品缩写不强制翻译，但仍应补足中文语义。
 - 图中的名称描述产品能力，不直接复制目录名、类名或历史兼容层名称。
 
 ## 布局算法
@@ -146,7 +146,7 @@ ZCode CLI
 | 运行层                    | 拥有的状态或副作用                                                                                         | 明确不拥有                                              |
 | ------------------------- | ---------------------------------------------------------------------------------------------------------- | ------------------------------------------------------- |
 | 渲染层（Renderer）        | 输入草稿、选择态、筛选范围、图表 range、UI projection cache                                                | Agent 运行态、会话正文、CLI queue、usage 事实           |
-| 宿主层（Host）            | 窗口级服务、Credential、远程连接、进程监督、附件路由、平台 IO、远端权益请求、Telemetry/ARMS 发送           | conversation 正文、Agent turn、手机 replayable 业务状态 |
+| 宿主层（Host）            | 窗口级服务、Credential、远程连接、进程监督、附件路由、平台 IO、远端权益请求、本地日志与诊断           | conversation 正文、Agent turn、手机 replayable 业务状态 |
 | 智能体运行层（ZCode CLI） | Agent/Turn、CommandInbox、ProductProjection、session event、模型/工具执行、会话恢复、usage SQLite 权威事实 | Renderer 草稿、窗口布局、Electron 平台状态              |
 
 - Desktop Renderer、未来 Web App 和 Mobile Renderer 复用产品语义，但通过不同 attachment 接入 Host。
@@ -174,7 +174,7 @@ Engineering Infrastructure
 - 工程基础设施可以构建、验证、观测和发布前三层，但不能成为 Renderer、Host 或 CLI 的线上运行时依赖。
 - Host 的“客户端更新生命周期”只负责客户端检查、下载、安装和更新完成呈现；CI 打包、签名、公证、制品上传、CDN 预热、灰度/稳定发布属于“构建与发布工程”。
 - 测试平台拥有共享 harness、runner、capture/replay、fixture contract、跨平台执行和晋级工具；具体功能 case 的产品断言仍由相应能力群共同维护。
-- 质量数据只记录测试结果、覆盖率、失败制品、时长、趋势和工程预算，不得混入 `/report`、ARMS/RUM、Conversation telemetry 或本地 App Usage。
+- 质量数据只记录测试结果、覆盖率、失败制品、时长、趋势和工程预算，不得混入本地 App Usage、日志或诊断数据。
 
 ## 能力群
 
@@ -195,7 +195,7 @@ Engineering Infrastructure
 | Host      | 工作台服务（Workbench Services）                                    | File/Terminal/Git 服务                                                                                  |
 | Host      | 自动化与渠道运行时（Automation & Channel Runtime）                  | scheduler、automation record、off-peak、Bots、第三方渠道                                                |
 | Host      | 客户端平台（Client Platform）                                       | Electron 生命周期、客户端更新、Feedback ticket 与诊断包                                                 |
-| Host      | 数据与可观测性（Data & Observability）                              | App Usage bridge、产品埋点、Conversation telemetry、ARMS、性能可靠性、日志与进程监控                    |
+| Host      | 数据与可观测性（Data & Observability）                              | App Usage bridge、日志、资源管理器与本地诊断                    |
 | ZCode CLI | 智能体核心（Agent Core）                                            | runtime 装配、turn 状态机、上下文、memory、compact、stream recovery、goal/target、故障收口              |
 | ZCode CLI | 对话运行时（Conversation Runtime）                                  | session lifecycle、input admission、CLI queue、event journal、ProductProjection、fork/rewind            |
 | ZCode CLI | 模型能力（Model Capabilities）                                      | provider runtime、目录能力、token 预算、多模态、推理与工具能力                                          |
@@ -220,9 +220,9 @@ Renderer
           ^
           | snapshot
 Host      |
-  App Usage Protocol Bridge       Product Telemetry / ARMS / Logs
+  App Usage Protocol Bridge       Logs / Local Diagnostics
           ^                                  |
-          | usage/stats                      `--> 外部数据与诊断后端
+          | usage/stats                      `--> 本地日志文件
 ZCode CLI |
   App Usage SQL Aggregation
           ^
@@ -240,8 +240,8 @@ ZCode CLI |
 - App Usage 是本地产品使用统计。权威源是 ZCode CLI 默认
   `~/.zcode/cli/db/db.sqlite` 中独立语义的 `model_usage`、`turn_usage`、`tool_usage` 表，
   经 `usage/stats` 协议提供给 Host 和 Renderer；它不是计费账本。
-- `/report` 产品埋点、ARMS/RUM、Conversation telemetry、日志基础设施和 App Usage 是不同通道，
-  不能再合并成一个 `telemetry` 或 `usage-quota` 节点。
+- 本地日志、资源管理器、本地诊断和 App Usage 是不同通道，不能再合并成一个 `usage-quota` 节点；
+  产品遥测与外部上报通道已移除。
 
 ## 智能体核心与对话运行时边界
 

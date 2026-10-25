@@ -43,17 +43,17 @@ UI 和 RPC 服务接口暂不扩展，`IFeedbackService` 继续向 UI 暴露现�
 
 ## 鉴权与匿名身份
 
-服务层复用桌面宿主统一的 telemetry `deviceMid` 作为反馈匿名 `device_mid`：
+服务层复用桌面宿主统一的设备身份 `deviceMid` 作为反馈匿名 `device_mid`：
 
 - `deviceMid` 由 main 进程在窗口创建前通过 `telemetry-state.json` 同步确保，并注入 host process。
-- 反馈服务不再维护独立的 `zcodefeedbackclientid`，避免同一台机器在 telemetry、ARMS、远控和 feedback 中被拆成多个设备。
+- 反馈服务不再维护独立的 `zcodefeedbackclientid`，避免同一台机器在远控、feedback 和计费中被拆成多个设备。
 - 旧的 `zcodefeedbackclientid` / `X-Feedback-Client-Id` 只作为废弃数据保留在本地凭据中，不参与新接口请求或匿名列表隔离。
 
 请求头规则：
 
 - 反馈请求通过统一 `ApiClient` 发送，自动携带 ZCode Server 通参，例如 `User-Agent`、`HTTP-Referer`、`X-ZCode-App-Version`、`X-Platform`、`X-Release-Channel`、`X-Client-Language`、`X-Client-Timezone`、`X-Os-Category`、`X-Os-Version` 和 `x-request-id`。
 - 如果本地凭据存在 `zcodejwttoken`，请求发送 `Authorization: Bearer <token>`。
-- 所有反馈 API 请求发送 `X-Device-Mid: <telemetry deviceMid>`，用于匿名工单归属与详情访问。
+- 所有反馈 API 请求发送 `X-Device-Mid: <deviceMid>`，用于匿名工单归属与详情访问。
 - `POST /feedback/ticket` 请求体同时发送 `device_mid`。
 - 不再发送旧接口使用的 `X-Feedback-Client-Id` 和 `X-Feedback-Account-Id`。
 
@@ -157,8 +157,8 @@ UI 和 RPC 服务接口暂不扩展，`IFeedbackService` 继续向 UI 暴露现�
 
 - 创建工单走 `/feedback/ticket`，请求体包含 `device_mid`、`content`、`environment`，并发送 Bearer JWT 和 `X-Device-Mid`。
 - 反馈 API 请求必须通过注入的统一 `ApiClient` 发出，不能绕过通参收口直接调用全局 `fetch`。
-- 无 JWT 时匿名创建使用 host 注入的 telemetry `deviceMid`，不生成或持久化独立反馈客户端 ID。
-- 无 JWT 列表不请求服务器，按 telemetry `deviceMid` 返回本地匿名缓存。
+- 无 JWT 时匿名创建使用 host 注入的 `deviceMid`，不生成或持久化独立反馈客户端 ID。
+- 无 JWT 列表不请求服务器，按 `deviceMid` 返回本地匿名缓存。
 - 有 JWT 列表调用服务器接口并映射状态。
 - 附件通过 upload credential + OSS 表单直传完成，并支持进度与取消。
 - 网络握手阶段的可重试失败仍会重试。

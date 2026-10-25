@@ -185,7 +185,7 @@ Telemetry identity impact: `subscription.details` now carries all active plans
 in server priority order, so the `plan_product_id` reported by `send_btn`
 telemetry reads `details[0]` — the highest-priority active plan. Server-side
 reordering intentionally flips this id. See
-`docs/monitoring/business-monitoring.md` for the reporting contract.
+
 
 The shared Plan Card behavior remains:
 

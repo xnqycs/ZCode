@@ -62,7 +62,7 @@ Subagent 保存后先关闭表单，再异步刷新列表。再次编辑须等�
 
 正式设置用例以稳定身份匹配入口：I23/I24 从 BigModel Template 新建 Personal Provider，并按新实例 ID 核对 API Key 与模型水合，不查询已退役的 Family API Key 连接项。Subagent 作用域按 `data-plugin-scope-key` 选择 `user` 或目标 workspace key；显示名包含设备信息，不能用裸项目名判断身份。MCP 正式用例复用 V4 初始化，保留真实 Agent 协商和 wire 断言。
 
-后台任务的 telemetry 采集按 case 重置 HTTP mock 与 ARMS 缓冲；不能复用跨 case 游标，否则未做 telemetry 断言的中间用例也会计入下一条的精确数量断言。
+产品遥测链路已移除；不再需要按 case 重置 ARMS/上报游标。
 
 后台任务行的可见性使用浏览器原生 `checkVisibility`。V4 的 `display: contents` 祖先没有自己的布局盒，但不会隐藏子节点；不能逐层要求祖先拥有非零矩形，否则会把可见的 running/stop 控件误判为消失。
 

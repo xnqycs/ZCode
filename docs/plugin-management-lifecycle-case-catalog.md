@@ -138,11 +138,6 @@ PLM-LC-018（管理列表本地化）、PLM-LC-019（双入口创建插件草稿
 - 浏览器层补充中英文、Zai Light/Dark、桌面与窄面板、键盘；手机/Web/远程打开提示不支持，安装管理仍可用。浏览器窄视口不等于真实手机远控验证。
 - 新测试保持 `manual-review/pending`，不自动提升 CI admission。
 
-## PLM-TEL-001 最终结果业务埋点
-
-待人工审核：`plugins/manual-review/pending/plugin-lifecycle-telemetry.test.ts`。
-通过真实个人来源添加、插件详情安装入口，验证安装前零结果、安装完成后一条成功结果、event_id/耗时/插件归属/入口齐备，并且没有 operation_id 或本机路径。上报仅在传输出口 mock，插件安装执行真实 CLI。尚未晋升正式 CI。
-
 ## PLM-UI-BACKGROUND 后台执行与保留
 
 `PLM-UI-CONNECTION-READY`：会话已创建或恢复、目标 MCP initialize 尚未完成时打开页面，

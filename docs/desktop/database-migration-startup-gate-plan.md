@@ -1,3 +1,5 @@
+> 产品遥测已移除：文中 ARMS 上报、reporter 与遥测镜像仅作历史设计记录，当前数据库启动只保留本地状态与日志。
+
 # 进入 ZCode 前统一准备数据库
 
 状态：2026-09-14 已实现，完成代码复审；自动化验证和平台限制见 [实施复审](./database-startup-implementation-review.md)。执行与验收清单见 [Todo 145](../working-memory/provider-refactor/steps/todo-145-global-database-startup-loading.md)。

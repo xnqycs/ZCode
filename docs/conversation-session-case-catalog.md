@@ -1,3 +1,5 @@
+> 产品遥测已移除：本文件中的 ARMS、`/event/report`、TelemetryCore 与 CLI Agent OTel 场景仅作历史记录，不再执行或维护。
+
 # Conversation Session Case Catalog
 
 ## 项目与任务草稿生命周期（2026-10-16）
@@ -2891,7 +2893,7 @@ accepted/queued 推断 `plan_request`、stop-without-terminal 合成 completion�
 固定零值修正和 paint/resource attribution 扩展。
 
 `TEL01-TEL09` 的原子化运行时差分与回归 case 使用 `TDP01-TDP19` 稳定编号，详见
-[`conversation-telemetry-differential-regression-plan.md`](testing/conversation-telemetry-differential-regression-plan.md)。
+已移除的 conversation telemetry 差分回归计划。
 2026-07-18 已完成 `20260718-tdp-all-final`：TDP01-TDP19 每条都由旧版/current 两个真实 Electron
 实例构造同一受控状态，比较最终 `/event/report` HTTP body 与 main ARMS payload；19 份独立 diff 均为
 0。预期零上报的 TDP16/TDP17/TDP19 另外执行 quota/安全校验/Web production 状态正断言，避免空对空假

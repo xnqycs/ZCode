@@ -81,7 +81,7 @@ account_uuid ─────────────────固定空字符�
 | Capability       | Anthropic request attribution metadata                                                                               |
 | Change layer     | `commit-effect`、`persistence`                                                                                       |
 | Operating mode   | `planning`                                                                                                           |
-| Primary seeds    | `ensureDesktopDeviceMidSync`、`createTelemetryCore`、`runGenerateText`、`runStreamText`、`createGenerateTextOptions` |
+| Primary seeds    | `ensureDesktopDeviceMidSync`、`runGenerateText`、`runStreamText`、`createGenerateTextOptions` |
 | Out of scope     | UI、app services 请求头、协议、conversation/replay 状态、非 Anthropic provider                                       |
 
 UI Surface Matrix：无 UI 入口。权威持久化是 Agent 所在主机的

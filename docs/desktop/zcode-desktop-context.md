@@ -16,7 +16,7 @@
 | 评估入口 | `zcode --surface desktop --prompt <text>`                                               |
 | 权威状态 | Services 根据可信宿主事实推导、并在 Agent 启动时冻结的 `presentationSurface`            |
 | 默认值   | `terminal`                                                                              |
-| 不涉及   | UI directive 解析、协议 schema、telemetry、provider `sourceTitle`、V4 delivery/recovery |
+| 不涉及   | UI directive 解析、协议 schema、本地诊断、provider `sourceTitle`、V4 delivery/recovery |
 
 ## Context Section 契约
 
@@ -112,7 +112,7 @@ remote connect command
 `--surface desktop` 只模拟输出呈现能力，不修改：
 
 - provider `sourceTitle`；headless CLI 仍是 `cli`，Protocol/Desktop 仍是 `electron`。
-- telemetry `runtimeSurface`。
+- 运行面 `runtimeSurface`（本地提示词/界面语义）。
 - Desktop `desktop-continuous` 与手机 `web-remote-replayable` 的 delivery/recovery 语义。
 
 ## 多端与远程边界
@@ -197,7 +197,7 @@ Main ready
 | must-inspect   | CLI parser -> Runtime config -> ContextBuilder | Desktop section 的唯一注入主链            |
 | must-inspect   | Host facts -> Services -> Agent process args   | 复用可信宿主事实推导 Desktop surface      |
 | conditional    | 手机 remote -> shared Host/CLI                 | 继承同一 prompt，但不改变 replayable 交付 |
-| invariant-only | `sourceTitle` / telemetry                      | 不随 CLI 评估参数改变                     |
+| invariant-only | `sourceTitle` / runtime surface                | 不随 CLI 评估参数改变                     |
 | invariant-only | custom prompt / subagent                       | 不注入 Desktop 默认 section               |
 | evidence-only  | Core/CLI/Bootstrap/Services/Server 集成测试    | 覆盖本地与远程宿主装配，不增加 UI E2E     |
 

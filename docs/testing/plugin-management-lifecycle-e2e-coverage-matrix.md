@@ -194,7 +194,6 @@ PLM-LC-018/019/020：`plugins/manual-review/pending/plugin-localization-creator.
 
 | Case        | 场景                   | 用例                                                               | 验证                    | 状态               |
 | ----------- | ---------------------- | ------------------------------------------------------------------ | ----------------------- | ------------------ |
-| PLM-TEL-001 | 插件安装最终结果与隐私 | `plugins/manual-review/pending/plugin-lifecycle-telemetry.test.ts` | macOS Electron 回放通过 | pending，未加入 CI |
 
 验证批次 `desktop-e2e-20261015031949530-p54859-5f1860f2585df3f1`：真实商店详情安装成功，最终 HTTP 出口仅一条 install 结果，含 event_id 和 duration_ms，无 operation_id 和路径。手机白名单、远端同步结果与 MCP 归属由定向单测验证；Windows/Linux 和真实远端安装未运行。
 

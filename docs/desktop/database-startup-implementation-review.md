@@ -1,3 +1,5 @@
+> 产品遥测已移除：文中 ARMS 上报、reporter 与遥测镜像仅作历史设计记录，当前数据库启动只保留本地状态与日志。
+
 # 全局数据库启动：实施复审
 
 日期：2026-09-14。分支：`codex/fix-database-migration-startup`。

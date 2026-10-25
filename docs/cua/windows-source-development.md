@@ -74,7 +74,7 @@ broker token 鉴权已被 node_repl 重构整体删除：连接门改为 native 
 broker，是另一条链路。正式凭据只剩 socket + `pluginAuthority` 二元组，由 Host 通过
 `buildCuaProductHelperAgentEnv()` 交给官方 plugin，不接受用户编写的 plugin 配置覆盖。
 `pluginAuthority` 是当前唯一的敏感凭据，不得出现在 child argv、进程标题、日志、错误文本、
-telemetry 或可复制 UI 文本中。
+日志或可复制 UI 文本中。
 
 ## 验证 source Helper
 

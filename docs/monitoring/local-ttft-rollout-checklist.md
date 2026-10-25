@@ -1,4 +1,6 @@
-# 本地 TTFT 上线与 ARMS 验收清单
+# 本地 TTFT 上线与 OTLP 验收清单
+
+> 产品遥测已移除：文中 ARMS 平台验收记录仅作历史证据；当前该通道只作为本地 OTLP 诊断使用。
 
 Status: in-progress
 

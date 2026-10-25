@@ -122,11 +122,8 @@ macOS 与 Windows 原生进程证据及手机待验证边界见根目录 coverag
 所有 `tool_name=Skill` 的 `agent_step` 增加 `skill_name`。不提取调度输入的请求名称，
 Skill handler 解析后通过既有 metadata 回调提供真实 `metadata.name`，沿
 `ToolCallResult/Error → tool.lifecycle.skillName → agent_step.skill_name` 传递。
-加载前失败/拒绝/停止、名称未解析或不符合遥测名称规则时使用 `unknown`。
-CLI fact、UI 兼容 metadata 与最终 `/report` 共用名称校验，禁止任意请求参数进入遥测；
-验收覆盖路径、URL、换行、模拟凭据与超长字符串的最终 HTTP 请求体。
-不调整模型输入输出、权限或工具执行；不新增状态 owner，桌面 continuous 与手机 replayable
-边界不变。字段、兼容与验收见根目录 `docs/monitoring/skill-agent-step-telemetry.md`。
+加载前失败/拒绝/停止、名称未解析时使用 `unknown`；名称校验只服务本地协议与 UI 展示，
+禁止任意请求参数进入日志。不调整模型输入输出、权限或工具执行。
 
 ## TaskStop 查找失败提示
 
@@ -277,19 +274,15 @@ interrupted 冷恢复，不保证原始输出。Desktop continuous 与手机 rep
 - 修改 TUI、ZCode app-server、debug、session replay、compact、resume、rewind 中任何 tool 相关投影。
 - 修改 MCP、plugin、subagent、background task 等动态或间接 tool 接入。
 
-Skill tool 的 telemetry 增量遵循独立规范
-[Skill `agent_step` telemetry](../../../../../docs/monitoring/skill-agent-step-telemetry.md)：
-resolved skill metadata 只能作为 telemetry-only 字段沿 session event、V4 fact 和既有
-`agent_step` 收口链路传播；不得新增 skill description step，也不得把 SKILL.md 正文写入
-高频埋点。非 `Skill` tool step 不得继承 `skill_*` 字段。
+resolved skill metadata 只能沿 session event 与 V4 fact 传播；不得新增 skill description step，
+也不得把 SKILL.md 正文写入高频日志。非 `Skill` tool step 不得继承 `skill_*` 字段。
 
 ### Todo103 G13：后台 Subagent 统计重接
 
-只扩展现有工具镜像和无正文 telemetry fact：标记后台来源、区分子工具与子 Agent 汇总，
+只扩展现有工具镜像和无正文 V4 fact：标记后台来源、区分子工具与子 Agent 汇总，
 以及记录主轮实际消费的结果组成。不改变 Agent 的参数、权限、调度、取消或输出，
 不建立第二份任务状态；显式模型继续使用 Todo99 的公共有效选择解析，隐式子任务继承父执行。
 模型身份仍取当前请求的扁平 providerId/modelId，不恢复旧 ModelRef。
-执行规范和测试边界见根目录 `docs/monitoring/agent-step-model-token-attribution.md`；
 desktop continuous 的 live 统计不能通过手机 replayable 恢复补发。
 
 ## 总原则
@@ -545,9 +538,8 @@ MCP 动态 tool 还需要额外确认：
   `tool.lifecycle.performance` 继续使用既有扁平 allowlist。CLI fact normalizer 必须逐字段映射，禁止
   直接 spread/透传 `perf`、`detail.command` 或 `detail.filesystem`；本地诊断用的
   `command.hash` 不得进入 V4 fact。严格 schema 失败会丢弃整条工具终态 fact，使 Renderer 只能在
-  turn terminal 兜底关闭 tool step，进而污染 `/event/report agent_step` 的时长、状态和失败归因。
-  回归测试必须同时覆盖真实 Gateway 的 command/filesystem/patch 映射，以及 supervisor 在真实工具
-  terminal 立即收口 `agent_step`、随后才上报 `message_completion` 的出口时序。
+  turn terminal 兜底关闭 tool step，进而污染 Renderer 的 tool step 时长、状态和失败归因。
+  回归测试必须覆盖真实 Gateway 的 command/filesystem/patch 映射，以及工具 terminal 的投影收口时序。
 
 本链路当前按阶段推进：先补 spec、模型指导和短结果序列化；随后补 read cache、stale guard、匹配校验、文件保真、权限安全和 diff UI。
 
@@ -867,8 +859,6 @@ Tool Agent Trace 统一在单调用 Executor 外层建立，handler 不单独埋
 - Telemetry Port 可选且默认 Noop；导出失败不得改变 tool 结果、权限、超时、取消或
   background task 语义。
 
-对应执行 Trace 主规范见
-[`../../../../../docs/trace/cli-agent-telemetry.md`](../../../../../docs/trace/cli-agent-telemetry.md)。
 
 ### 8. I/O Adapter 与跨平台边界
 
@@ -1104,7 +1094,7 @@ history。重点检查：
   `session_entry` 持久化；cold resume 的 `SessionResumed` 建立新 raw event epoch，但 V4 transport
   sequence 必须继续单调，避免旧 detached child 高水位吞掉新的撤销事件。
 - subagent / background task 内部产生的 child tool lifecycle 以 child session 持久事件为事实来源；镜像到父 runtime 的
-  `source: "subagent"` 事件只供兼容消费者、运行态诊断和 telemetry 使用，不是父 session 的工具事实。ZCode Protocol V4
+  `source: "subagent"` 事件只供兼容消费者、运行态诊断和本地日志使用，不是父 session 的工具事实。ZCode Protocol V4
   ProductProjection 必须在 row materialization 前识别该来源，foreground/background 一律不得生成父 conversation 的
   `ToolCallRow`、plan 或文件摘要；完整工具历史只在 `conversation/<childSessionId>` 中物化。父 conversation 继续投影
   Agent/Task 行、subagent manifest、background work 和带 subagent origin 的阻塞交互。该边界同时适用于桌面

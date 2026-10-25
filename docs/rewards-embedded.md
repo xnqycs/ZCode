@@ -41,7 +41,7 @@ Windows/Linux 的奖励页及其登录入口必须保留顶部窗口按钮，关
 
 ### 奖励页请求头（2026-09-16）
 
-最终决定：访问奖励页面不注入 App 公共请求头或 Authorization。此前请求头方案撤销；完整公共头与 Bearer JWT 仅用于 App 自身 `/event/report`，见 [上报投递合同](monitoring/event-report-delivery-reliability.md)。
+最终决定：访问奖励页面不注入 App 公共请求头或 Authorization。此前请求头方案撤销；奖励页面访问不注入 App 公共请求头或 Authorization。
 
 ```text
 打开 WebView（普通网页请求） → dom-ready → 原 bridge 注入/状态同步（保留）
@@ -53,7 +53,7 @@ Bridge 保留登录状态、主题、语言及当前网页所需存储注入和�
 
 验收 REW-17：首个请求/刷新不携带额外 App 通参或 Authorization；原 bridge/菜单/主题/语言与手机外链不变。文末早期请求头验证记录仅为已撤销方案的历史证据，不代表当前协议。
 
-最终回归：本机 Electron `desktop-e2e-20260916-043702-139` 3/3 通过，同时确认 App `/event/report` 的登录/匿名请求头；未使用 Docker。移除专用 IPC/hook 后不再出现“请求头上下文准备”前置步骤。
+最终回归：本机 Electron `desktop-e2e-20260916-043702-139` 3/3 通过，未使用 Docker。移除专用 IPC/hook 后不再出现“请求头上下文准备”前置步骤。
 
 ```mermaid
 sequenceDiagram

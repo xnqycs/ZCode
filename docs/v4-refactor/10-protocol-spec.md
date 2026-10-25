@@ -1601,9 +1601,6 @@ type ConversationTelemetryFact = ConversationTelemetryFactBase &
   pane/SessionDataLayer 生命周期不得拥有该状态。
 - eventId 使用约 2000 条有界 LRU；terminal 与 compact 另按业务 key exactly-once。
 
-完整事件名、字段兼容和前后台矩阵见
-[`docs/monitoring/conversation-telemetry-v4.md`](../monitoring/conversation-telemetry-v4.md)。
-
 ---
 
 ## 8. 常量与限额（初始值，实测调参）

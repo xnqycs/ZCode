@@ -247,4 +247,3 @@ Desktop 中每次点击推荐 Prompt 模板（包括普通 Prompt 预填、Autom
 `eventExtraDetail` 严格只包含 `template_id` 和 `template_prompt`，不上传 `template_name`、
 `template_action`、`talkId` 或 `messageId`。点击埋点在点击处理开始时触发，并与异步 Plugin 操作、导航
 或草稿预填解耦；埋点失败不得阻塞原有交互。Desktop 的 `userId`、客户端上下文和设备字段继续由既有
-`/event/report` 宿主链路补充。Web / 手机远控不在本轮 `/event/report` 统计范围内。

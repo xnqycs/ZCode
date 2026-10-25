@@ -10,7 +10,7 @@ formal-proof、case catalog 和用户剪枝方法，但核心是先问清功能�
 ## 目标
 
 - 在 skill 内增加一份 ZCode 能力域和交叉轴参考，帮助使用者从自然语言需求定位相关文档、代码和状态所有者。
-- 让矩阵枚举覆盖桌面端、Web 端、手机远控、远程 workspace、model/provider、queue、persistence、telemetry、
+- 让矩阵枚举覆盖桌面端、Web 端、手机远控、远程 workspace、model/provider、queue、persistence、本地诊断、
   rendering performance、permission/tool/MCP、theme/locale 等真实产品交叉点。
 - 保持 `SKILL.md` 精简，把详细 domain map 放入 `references/`，按需加载。
 - 保留用户剪枝机制：skill 只能提出候选语义和影响面，不能替用户静默决定产品行为。
@@ -26,7 +26,7 @@ formal-proof、case catalog 和用户剪枝方法，但核心是先问清功能�
 | Queue / command                | `docs/ui/chat-message-queue.md`, `docs/zcode-protocol.md`                                                                                             | `packages/shared/src/zcode-protocol-v4/command.ts`, `packages/ui/src/v4/SessionPane.tsx`, `apps/zcode-cli/packages/bootstrap/src/zcode-protocol-v4/commands/handlers/queue.ts` |
 | Persistence / identity         | `docs/task/task-sqlite-index.md`, `docs/task/task-snapshot-on-demand.md`, `docs/remote-workspace-session-unified-settings.md`                         | `packages/services/src/session/taskIndexRepo.ts`, `packages/ui/src/store/tabWorkspaceIdentity.ts`, `packages/shared/src/workspaceSessionRestore.ts`                            |
 | Rendering performance          | `docs/chat/message-render-performance.md`, `docs/performance/streaming-tool-input-backpressure.md`, `docs/performance/renderer-production-logging.md` | `packages/ui/src/v4/ConversationTimeline.tsx`, `packages/ui/src/v4/ConversationRowView.tsx`, `packages/ui/src/v4/conversationProjectionStore.ts`                               |
-| Monitoring / telemetry / usage | `docs/monitoring/performance-telemetry-catalog.md`, `docs/monitoring/business-monitoring.md`, `docs/usage-stats-app-coding-plan-split.md`             | `packages/ui/src/lib/appTelemetry.ts`, `packages/ui/src/lib/uiPerfArmsTelemetry.ts`, `packages/services/src/telemetry`, `packages/services/src/usage-stats`                    |
+| Monitoring / local diagnostics / usage | `docs/monitoring/README.md`, `docs/usage-stats-app-coding-plan-split.md`             | `packages/ui/src/v4/telemetry`, `packages/services/src/usage-stats`                    |
 | Permission / tool / MCP        | `docs/permission-project-approval.md`, `docs/mcp-platform-boundary.md`, `docs/agent-tool-call-renderer.md`                                            | `packages/shared/src/zcode-protocol-v4/`, `packages/shared/src/mcp.ts`, `packages/ui/src/v4/V4InteractionDialogs.tsx`, `packages/ui/src/ToolCallBlocks*`                       |
 | Theme / locale / mobile shell  | `docs/ui/zai-themes.md`, `docs/ui/default-theme.md`, `docs/web-remote-control/mobile-theme-control.md`                                                | `packages/ui/src/i18n`, `packages/ui/src/useTheme.ts`, `packages/ui/src/WebRemoteControlMobileShell.tsx`, `packages/shared/src/protocol.ts`                                    |
 
@@ -51,7 +51,7 @@ formal-proof、case catalog 和用户剪枝方法，但核心是先问清功能�
 | replayable snapshot x 持久化数据                                        | `ZCodeTaskSnapshot.runtime` 是响应态运行时补充，不写回 session JSON；task index 只负责列表元数据。                               |
 | queue x stop / compact / goal / edit / fork                             | queue 是未来用户意图，不能被 compact、edit、fork 隐式改写；stop 后 autoDrain 语义需要明确。                                      |
 | rendering performance x streaming tool input / background task / replay | 大工具输入、Markdown、Mermaid、后台任务和 replayable gap 会放大 store 写入、解析和 React render 成本。                           |
-| telemetry x message stream / tool step / privacy / volume               | 高频 step/chunk 级事件会放大 ARMS 或日志量；用户内容、credential、hash 和原始 payload 不能进入不该进入的通道。                   |
+| local diagnostics x message stream / tool step / privacy / volume        | 高频 step/chunk 级诊断会放大本地日志量；用户内容、credential、hash 和原始 payload 不能进入不该进入的通道。                        |
 | theme / locale x desktop / mobile / persisted settings                  | 桌面和手机远控主题本地偏好互不耦合；locale 可能影响命令、菜单、toast、截图断言和测试文案。                                       |
 | workspace identity x cache / task list / skill/plugin/MCP load          | 远程 workspace 不能只按 path 做隔离；缓存、队列、配置、任务列表和远程历史都要用 identity fallback 规则。                         |
 | tool/MCP/permission x mobile remote                                     | MCP 平台能力通过 `IPlatformService` 和 shared-host attachment 走；permission options 必须透传 agent response，不能由 UI 猜。     |

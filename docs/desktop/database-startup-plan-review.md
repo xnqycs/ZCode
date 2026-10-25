@@ -1,3 +1,5 @@
+> 产品遥测已移除：文中 ARMS 上报、reporter 与遥测镜像仅作历史设计记录，当前数据库启动只保留本地状态与日志。
+
 # Todo 145 开工审查与影响面
 
 后续实施与验证见 [实施复审](./database-startup-implementation-review.md)；本文保留开工时的审查轨迹，下方“待实现”是历史状态。

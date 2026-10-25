@@ -1,10 +1,9 @@
 {
   "$schema": "https://unpkg.com/knip@6/schema.json",
-  "tags": [
-    "-lintignore"
-  ],
+  "tags": ["-lintignore"],
   "workspaces": {
     ".": {}
   },
-  "ignore": [".agents/**", ".claude/**", "docs/**", "packages/ui/src/components/**"]
+  "ignore": [".agents/**", ".claude/**", "docs/**", "packages/ui/src/components/**"],
+  "ignoreDependencies": ["@opentelemetry/otlp-transformer"]
 }

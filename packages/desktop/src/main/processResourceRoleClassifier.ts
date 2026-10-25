@@ -4,11 +4,6 @@
  */
 
 import type { ProcessResourceRole } from "@zcode/shared";
-import {
-  addAppResourceTotals,
-  createEmptyAppResourceTotals,
-  type AppResourceTotals,
-} from "./processResourceAppTotals.js";
 import { roundMetric } from "./resourceMetricsStats.js";
 
 /** getAppMetrics 能覆盖的七个角色；cli_* 与 mcp 由 CLI 样本贡献，不在这里出现。 */
@@ -55,24 +50,6 @@ export interface ChromiumRoleAggregate {
   processCount: number;
   /** 角色内最老进程的运行分钟数。 */
   uptimeMinutes: number;
-}
-
-/**
- * 汇总一个 tick 的全部 Chromium 角色，得到 main 能精确枚举到的应用进程合计。
- * 设备级应用总量只从这里取 Chromium 部分：CLI 与 MCP 走外部样本入口，两边不会重复计数。
- */
-export function sumChromiumRoleAggregates(
-  aggregates: readonly ChromiumRoleAggregate[],
-): AppResourceTotals {
-  let totals = createEmptyAppResourceTotals();
-  for (const aggregate of aggregates) {
-    totals = addAppResourceTotals(totals, {
-      cpuPercent: aggregate.cpuPercent,
-      rssKbTotal: aggregate.rssKbTotal,
-      processCount: aggregate.processCount,
-    });
-  }
-  return totals;
 }
 
 export function classifyChromiumProcessRole(

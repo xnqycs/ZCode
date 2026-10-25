@@ -9,7 +9,7 @@ Renderer 层运行在桌面窗口和 Web 远控页面内，日志调用会和 Re
 - 生产构建里的 renderer 本地日志默认不输出。
 - 生产构建里的 UI 日志不再通过 `window.zcode.log` 转发到 main 进程落盘。
 - 开发构建继续保留 renderer console 和桌面日志桥，方便本地排查。
-- 正式监控链路不属于本策略的关闭范围，例如 ARMS、telemetry、crash capture、用户主动导出日志、服务层和 host/main 进程日志。
+- 本地诊断链路不属于本策略的关闭范围，例如 crash capture、用户主动导出日志、服务层和 host/main 进程日志。
 
 ## 环境边界
 

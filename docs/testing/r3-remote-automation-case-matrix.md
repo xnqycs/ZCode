@@ -181,7 +181,7 @@ R3A-REC-08 的证据分两层：桌面 E2E 扣留真实 SSH 回包，让 Source 
 | ---------- | --------- | -------------------------------------------------------------------------------------- | ------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------- | --------- |
 | R3A-TEL-01 | P1        | 隔离report捕获器；local/SSH task与connection lifecycle；远端conversation telemetry合同 | 各自发送、连接/重连，切tab并重建attachment | agent_step等事件的workspace_kind/remote_kind与实际来源一致；不串分类、不重复上报；上报失败不阻断产品；日志/事件不含host/secret等越界字段 | E+I/URNL  |
 
-该行对应合并前R3的远端事实转发与local/remote分类修复，复用SSH P0中的report inventory断言；使用当前 `docs/monitoring/conversation-telemetry-v4.md` 合同，不把较早使用量文档的“尚无自动恢复”历史表述作为当前行为。
+该行对应合并前R3的远端事实转发与local/remote分类修复，复用SSH P0中的report inventory断言。
 
 ## I. 真实模型与长稳
 

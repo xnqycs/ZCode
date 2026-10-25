@@ -1,3 +1,5 @@
+> 产品遥测已移除：文中 ARMS 平台验收记录仅作历史证据；当前该通道只作为本地 OTLP 诊断使用。
+
 # 本地 TTFT 查询与验收
 
 Status: in-progress

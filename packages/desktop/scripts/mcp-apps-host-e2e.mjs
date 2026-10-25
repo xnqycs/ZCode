@@ -38,7 +38,6 @@ if (
     "dynamic-workflow",
     "contracts",
     "i18n",
-    "telemetry",
     "dynamic-workflow-runtime",
     "core",
     "adapters",

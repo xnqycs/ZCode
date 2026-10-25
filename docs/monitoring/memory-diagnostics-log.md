@@ -5,13 +5,13 @@
 ## 问题
 
 用户反馈桌面端内存持续增长时，拿到日志压缩包无法回答三个问题：哪个进程在涨、涨的是
-JS heap 还是 native、哪张内存表在涨。现有 ARMS 资源遥测只有 RSS / working set 的 5 分钟聚合，
+JS heap 还是 native、哪张内存表在涨。产品资源遥测已移除；本地内存诊断提供更细的读数，
 本地日志里不落任何数值；renderer 完全没有内存维度。全仓静态审计
 （`docs/analysis/memory-leak-audit-2026-09-03.md`）列出的高危增长点分散在 main / renderer /
 host / agent CLI 四类进程，必须先有运行时证据才能决定修哪一条。
 
 本功能只解决**本机定位**：每个进程按门控规则往自己已有的本地日志写一行「heap 细分 +
-领域计数器」。它不上报 ARMS、不改 ZCode Protocol schema、不新增 host→main 或 renderer→main
+领域计数器」。它不上报远端、不改 ZCode Protocol schema、不新增 host→main 或 renderer→main
 消息类型、不改任何业务逻辑。
 
 ## 产品合同
@@ -84,7 +84,7 @@ CLI 侧写结构化日志：`event=zcode_protocol.process.memory_sample`，`modu
 | main | `taskBus.streamBatches` / `taskBus.leases` / `taskBus.sessionRoutes` | `TaskRealtimeBus` 三张表 |
 | main | `guest.tabs` / `guest.closedTabIds` | `BrowserGuestManager` |
 | main | `broadcast.claims` / `broadcast.processes` | `BroadcastHub` |
-| main | `ws.<process_role>`（`ws.main` / `ws.renderer_main` / `ws.renderer_guest` / `ws.gpu` / `ws.chromium_other` / `ws.host` / `ws.scheduler`） | `app.getAppMetrics()` 按 `process_role` 求和的 working set（KB）。角色词表与 ARMS `perf_process_window` 同源（`docs/monitoring/process-resource-telemetry.md`），只输出本 tick 有存活进程的角色 |
+| main | `ws.<process_role>`（`ws.main` / `ws.renderer_main` / `ws.renderer_guest` / `ws.gpu` / `ws.chromium_other` / `ws.host` / `ws.scheduler`） | `app.getAppMetrics()` 按 `process_role` 求和的 working set（KB）。角色词表与资源管理器同源，只输出本 tick 有存活进程的角色 |
 | renderer | `shiki.tokensCache` / `shiki.highlighters` | 代码高亮 token 缓存条数 |
 | renderer | `taskSnapshotCache.entries` / `taskSnapshotCache.persisted` | task snapshot 内存缓存与持久缓存条数 |
 | renderer | `sessionStore.workspaces` | `zcodeSessionStore` 的 workspace 桶数 |
@@ -125,7 +125,7 @@ grep memory_sample ~/.zcode/cli/log/zcode-2026-09-03.jsonl | jq -c '[.time, .con
 
 ## 实现
 
-> 采样源与 [全进程 CPU / 内存监控埋点](./process-resource-telemetry.md) 共用：host 与 renderer 的 60 秒定时器一次读数同时喂本地日志与 ARMS 样本，
+> 采样源与资源管理器共用：host 与 renderer 的 60 秒定时器一次读数同时喂本地日志与资源管理器快照，
 > main 的 heap 读取并入资源遥测的 10 秒 tick（每 6 个 tick 一次），CLI 已是共用形态。
 > 本文的门控与行格式不变；main 的 `ws.*` 计数器随资源遥测的角色分类器一起改用新的
 > `process_role` 词表（`ws.renderer` → `ws.renderer_main` / `ws.renderer_guest`，

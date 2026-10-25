@@ -4,7 +4,6 @@
 
 - 本文是 Electron Desktop Renderer 用户语义操作 Trace 的实现规范。
 - 只新增 `ui_action` Span；Web、手机、Host、CLI、RPC 与 ZCode Protocol 不接入。
-- `/event/report` 保持现有事件、字段与计数，不复用本 Catalog。
 
 ## 架构
 
@@ -113,7 +112,6 @@ Cookie、浏览记录、Model I/O、完整错误和 stack。
 ## 验收
 
 - Catalog feature/action 唯一且完整。
-- `/event/report` 调用和 payload 零变化。
 - Host/CLI/RPC/Protocol 零改动。
 - Web/手机不初始化、不发送 batch。
 - Main 保留 Renderer 生成的 traceId/spanId/时间/Resource/Attribute。
