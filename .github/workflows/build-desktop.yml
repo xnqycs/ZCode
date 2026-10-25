@@ -14,7 +14,7 @@ on:
       publish_release:
         description: "Create a GitHub prerelease with all six unsigned platforms"
         required: false
-        default: false
+        default: true
         type: boolean
 
 permissions:

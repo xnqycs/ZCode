@@ -18,7 +18,7 @@
 | 文件                                          | 触发                | 职责                                                                                      |
 | --------------------------------------------- | ------------------- | ----------------------------------------------------------------------------------------- |
 | `.github/workflows/ci.yml`                    | PR、main push、手动 | Node 24 / pnpm 10.33.2 安装，`typecheck`、`lint`、`db:schema:check`、架构检查、受影响单测 |
-| `.github/workflows/build-desktop.yml`         | 手动                | 六平台未签名安装包；可选 GitHub prerelease                                                |
+| `.github/workflows/build-desktop.yml`         | 手动                | 六平台未签名安装包；默认创建 GitHub prerelease，可取消                                    |
 | `.github/actions/setup/action.yml`            | 被上述工作流复用    | 安装 `mise.toml` 固定的 Node 24.14.0、`packageManager` 指定的 pnpm，并执行冻结锁文件安装  |
 | `.github/scripts/build-linux-in-container.sh` | Linux matrix job    | 在 `rockylinux:8` 中安装 Node 24/pnpm、构建 Linux 包                                      |
 
@@ -68,7 +68,7 @@ ZCODE_PREVIEW_IDENTITY=1
 ## 产物
 
 - Workflow artifact：`zcode-<product>-<platform>`，保留 7 天。
-- 可选 GitHub prerelease：`unsigned-<run_number>`，包含 `SHA256SUMS.txt` 和 `UNSIGNED.txt` 警告。
+- 默认创建 GitHub prerelease：`unsigned-<run_number>`，包含 `SHA256SUMS.txt` 和 `UNSIGNED.txt` 警告；可在手动触发时取消 `publish_release`。
 - 不生成或上传 stable update feed；`latest*.yml` 不进入 artifact，避免被误当作可发布更新元数据。
 - 安装包仍受 `packages/desktop/scripts/audit-bundle-size.mjs` 的 500 MiB 上限约束。
 
@@ -95,5 +95,5 @@ ZCODE_PREVIEW_IDENTITY=1
 
 - PR 工作流在干净 checkout 上通过 `pnpm typecheck`、`pnpm lint`、`pnpm db:schema:check`、`pnpm test:architecture`、`pnpm architecture:check -- --changed`、`pnpm test:unit:affected --base <base>`。
 - `workflow_dispatch` 运行时六个平台 job 全部成功，并产出对应安装包 artifact。
-- `publish_release=true` 时生成的 prerelease 带 `UNSIGNED.txt` 与 `SHA256SUMS.txt`。
+- 默认 `publish_release=true`；生成的 prerelease 带 `UNSIGNED.txt` 与 `SHA256SUMS.txt`。
 - 未签名产物不得进入正式更新 feed；不得设置 `ZCODE_AUTO_UPDATE=1`。
