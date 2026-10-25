@@ -269,8 +269,6 @@ declare global {
       notifyWebRemoteControlAuthStateChanged(change: WebRemoteControlAuthStateChange): void;
       /** 注册 OAuth deep link 回调，返回 disposer */
       onOAuthCallback(cb: (url: string) => void): () => void;
-      /** 注册支付 deep link 回调，返回 disposer */
-      onPaymentCallback(cb: (url: string) => void): () => void;
       /** 通知 main process renderer 已就绪 */
       notifyRendererReady(): void;
       /** 读取 Desktop Renderer 用户操作 Trace 灰度配置。 */

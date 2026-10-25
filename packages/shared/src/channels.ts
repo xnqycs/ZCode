@@ -371,7 +371,6 @@ export const PlatformChannels = {
   /** Main → Renderer：转发 deep link URL */
   OAuthCallback: "zcode:oauth-callback",
   /** Main → Renderer：转发支付 deep link URL */
-  PaymentCallback: "zcode:payment-callback",
   /** Main → Renderer：外部分享页请求导入 share code。 */
   ShareImport: "zcode:share-import",
   /** Renderer → Main：renderer 已就绪，可接收缓存的 deep link */
@@ -1005,10 +1004,6 @@ export interface PlatformChannelMap {
     response: void;
   };
   [PlatformChannels.OAuthCallback]: {
-    request: string;
-    response: void;
-  };
-  [PlatformChannels.PaymentCallback]: {
     request: string;
     response: void;
   };
