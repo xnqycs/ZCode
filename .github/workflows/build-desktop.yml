@@ -1,0 +1,243 @@
+name: Build Desktop (unsigned)
+
+on:
+  workflow_dispatch:
+    inputs:
+      product:
+        description: "preview installs beside a signed ZCode.app; production uses the ZCode identity but is still unsigned"
+        required: true
+        default: preview
+        type: choice
+        options:
+          - preview
+          - production
+      publish_release:
+        description: "Create a GitHub prerelease with all six unsigned platforms"
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build-desktop-${{ github.ref }}
+  cancel-in-progress: false
+
+defaults:
+  run:
+    shell: bash
+
+env:
+  HUSKY: "0"
+  ZCODE_ENV: production
+  ZCODE_AUTO_UPDATE: "0"
+  ZCODE_PREVIEW_IDENTITY: ${{ inputs.product == 'production' && '0' || '1' }}
+
+jobs:
+  build-linux:
+    name: ${{ matrix.platform }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 240
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: linux-x64
+            runner: ubuntu-24.04
+            target_arch: x64
+          - platform: linux-arm64
+            runner: ubuntu-24.04-arm
+            target_arch: arm64
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build Linux packages in glibc 2.28 container
+        env:
+          ZCODE_TARGET_ARCH: ${{ matrix.target_arch }}
+        run: |
+          set -euo pipefail
+          docker run --rm \
+            --volume "${GITHUB_WORKSPACE}:/work" \
+            --workdir /work \
+            --env HUSKY=0 \
+            --env ZCODE_ENV=production \
+            --env ZCODE_PREVIEW_IDENTITY="${ZCODE_PREVIEW_IDENTITY}" \
+            --env ZCODE_AUTO_UPDATE=0 \
+            --env ZCODE_TARGET_ARCH="${ZCODE_TARGET_ARCH}" \
+            --env NODE_VERSION=24.14.0 \
+            --env PNPM_VERSION=10.33.2 \
+            --env HOST_UID="$(id -u)" \
+            --env HOST_GID="$(id -g)" \
+            rockylinux:8 \
+            bash /work/.github/scripts/build-linux-in-container.sh
+
+      - name: Upload Linux artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: zcode-${{ inputs.product }}-${{ matrix.platform }}
+          path: |
+            packages/desktop/dist/*.AppImage
+            packages/desktop/dist/*.deb
+            packages/desktop/dist/*.rpm
+            packages/desktop/dist/*.pkg.tar.zst
+          if-no-files-found: error
+          retention-days: 7
+
+  build-windows:
+    name: ${{ matrix.platform }}
+    runs-on: windows-2022
+    timeout-minutes: 300
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: windows-x64
+            target_arch: x64
+          - platform: windows-arm64
+            target_arch: arm64
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node and pnpm
+        uses: ./.github/actions/setup
+
+      - name: Build Windows packages
+        env:
+          ZCODE_TARGET_OS: win32
+          ZCODE_TARGET_ARCH: ${{ matrix.target_arch }}
+        run: |
+          set -euo pipefail
+          pnpm build:bootstrap
+          pnpm prepare:desktop-runtime
+          pnpm bundle:desktop -- --os win --arch "${ZCODE_TARGET_ARCH}" --skip-build --skip-prepare
+
+      - name: Upload Windows artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: zcode-${{ inputs.product }}-${{ matrix.platform }}
+          path: |
+            packages/desktop/dist/*.exe
+            packages/desktop/dist/*.blockmap
+          if-no-files-found: error
+          retention-days: 7
+
+  build-macos:
+    name: ${{ matrix.platform }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 300
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # macos-14 is the native arm64 runner but only has 7 GB RAM. The build
+          # script raises Node's old-space limit to 8 GB, so this is the first
+          # job to check when diagnosing an OOM. Use a larger runner if needed.
+          - platform: macos-x64
+            runner: macos-15-intel
+            target_arch: x64
+          - platform: macos-arm64
+            runner: macos-14
+            target_arch: arm64
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node and pnpm
+        uses: ./.github/actions/setup
+
+      - name: Build macOS packages
+        env:
+          ZCODE_TARGET_OS: mac
+          ZCODE_TARGET_ARCH: ${{ matrix.target_arch }}
+        run: |
+          set -euo pipefail
+          pnpm build:bootstrap
+          pnpm prepare:desktop-runtime
+          pnpm bundle:desktop -- --os mac --arch "${ZCODE_TARGET_ARCH}" --skip-build --skip-prepare
+
+      - name: Verify disk image
+        run: |
+          set -euo pipefail
+          for dmg in packages/desktop/dist/*.dmg; do
+            hdiutil verify "${dmg}"
+          done
+
+      - name: Upload macOS artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: zcode-${{ inputs.product }}-${{ matrix.platform }}
+          path: |
+            packages/desktop/dist/*.dmg
+            packages/desktop/dist/*.zip
+            packages/desktop/dist/*.blockmap
+          if-no-files-found: error
+          retention-days: 7
+
+  publish:
+    name: Publish unsigned prerelease
+    needs:
+      - build-linux
+      - build-windows
+      - build-macos
+    if: ${{ inputs.publish_release }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      contents: write
+
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: release
+          merge-multiple: true
+
+      - name: Generate checksums and unsigned warning
+        run: |
+          set -euo pipefail
+          (
+            cd release
+            find . -maxdepth 1 -type f -print0 | sort -z | xargs -0 sha256sum
+          ) > /tmp/SHA256SUMS.txt
+          mv /tmp/SHA256SUMS.txt release/SHA256SUMS.txt
+          cat > release/UNSIGNED.txt <<'EOF'
+          This prerelease contains unsigned desktop builds.
+
+          macOS: Gatekeeper will block the downloaded app. Open System Settings ->
+          Privacy & Security and choose "Open Anyway", or remove quarantine with
+          `xattr -dr com.apple.quarantine /Applications/ZCode.app`. Automatic
+          updates are disabled and must be installed manually.
+
+          Windows: SmartScreen will show an "unknown publisher" warning. Enterprise
+          policy or Defender may block the installer entirely.
+
+          Linux: packages are not affected by code signing.
+
+          These artifacts are for internal testing only. They are not published to
+          the production update feed.
+          EOF
+          ls -lh release
+
+      - name: Create or update prerelease
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PRODUCT: ${{ inputs.product }}
+        run: |
+          set -euo pipefail
+          tag="unsigned-${GITHUB_RUN_NUMBER}"
+          mapfile -d '' assets < <(find release -maxdepth 1 -type f -print0 | sort -z)
+          if gh release view "${tag}" >/dev/null 2>&1; then
+            gh release upload "${tag}" "${assets[@]}" --clobber
+          else
+            gh release create "${tag}" "${assets[@]}" \
+              --target "${GITHUB_SHA}" \
+              --title "Unsigned ${PRODUCT} build ${GITHUB_RUN_NUMBER}" \
+              --notes-file release/UNSIGNED.txt \
+              --prerelease
+          fi

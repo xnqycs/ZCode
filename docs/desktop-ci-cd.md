@@ -1,5 +1,7 @@
 # Desktop CI/CD
 
+> 当前公开检出没有 `.gitlab-ci.yml` 或 `.gitlab/ci/*.yml`。本文保留为内部 GitLab 发布链的说明；公开仓库的未签名 GitHub Actions 构建见 [GitHub Actions 未签名桌面构建](desktop/github-actions-unsigned-build.md)。
+
 `z-code` 的桌面端 CI/CD 入口是根目录的 `.gitlab-ci.yml`，具体 job 按职责拆分在 `.gitlab/ci/*.yml` 中。正式发布在普通 tag 管道上为 `approve -> validate -> upload -> preload -> publish -> release-notify`。发布日志由 infra API 直接编辑 runner 共享目录中的 `latest.yml`；z-code CI 在人工确认后、上传前统一校验六个平台和 remote assets，只上传版本化静态产物，不读取仓库 changelog、不生成独立 locale 清单，也不覆盖 CDN 上的旧 generic stable feed。
 
 ## 配置文件结构

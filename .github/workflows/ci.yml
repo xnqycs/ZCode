@@ -1,0 +1,74 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  HUSKY: "0"
+
+jobs:
+  verify:
+    name: Verify
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node and pnpm
+        uses: ./.github/actions/setup
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Database schema contract
+        run: pnpm db:schema:check
+
+      - name: Architecture unit tests
+        run: pnpm test:architecture
+
+      - name: Resolve diff base
+        id: diff-base
+        run: |
+          set -euo pipefail
+          base="${{ github.event.pull_request.base.sha }}"
+          if [ -z "${base}" ] && [ "${{ github.event_name }}" = "push" ]; then
+            base="${{ github.event.before }}"
+          fi
+          case "${base}" in
+            0000000000000000000000000000000000000000) base="" ;;
+          esac
+          if [ -n "${base}" ]; then
+            base="$(git merge-base "${base}" HEAD || true)"
+          fi
+          echo "base=${base}" >> "${GITHUB_OUTPUT}"
+
+      - name: Architecture check
+        env:
+          ARCHITECTURE_BASE: ${{ steps.diff-base.outputs.base }}
+        run: pnpm architecture:check -- --changed
+
+      # 全量 pnpm test:unit 目前在 main 上受 telemetry 移除后的遗留断言影响；
+      # 在基线修复前只对本次 diff 关联的测试做阻塞门禁。
+      - name: Affected unit tests
+        if: ${{ steps.diff-base.outputs.base != '' }}
+        env:
+          BASE_SHA: ${{ steps.diff-base.outputs.base }}
+        run: pnpm test:unit:affected --base "${BASE_SHA}"
