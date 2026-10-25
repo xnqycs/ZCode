@@ -186,6 +186,13 @@ function resolveMcpServerConfig(
   const baseConfig: McpServerConfigBase = {
     alwaysLoad: typeof server.alwaysLoad === "boolean" ? server.alwaysLoad : undefined,
     enabled: typeof server.enabled === "boolean" ? server.enabled : undefined,
+    // 修复原因：manifest / .mcp.json 的 isolation 此前在这里被丢弃，声明 workspace 的插件 MCP
+    // server 仍按 session 隔离连接，跨会话无法复用同一进程。收窄到协议枚举，其他值按未声明处理
+    // （连接池默认 session），与 shared 协议 schema 的约束一致。
+    isolation:
+      server.isolation === "workspace" || server.isolation === "session"
+        ? server.isolation
+        : undefined,
     timeoutMs: typeof server.timeoutMs === "number" ? server.timeoutMs : undefined,
     source: {
       kind: context.loaded.marketplace === ZCODE_OFFICIAL_PLUGIN_MARKETPLACE ? "builtin" : "plugin",
