@@ -29,9 +29,7 @@ export { refreshRestoredOAuthProviderFamilyAfterStartup } from "@/root/oauthProv
 
 export async function handleOAuthCallbackSuccess(params: {
   result: OAuthSessionCallbackResult;
-  refreshLatestModelProviderFamilySelection?: (
-    provider: OAuthProviderId,
-  ) => Promise<unknown>;
+  refreshLatestModelProviderFamilySelection?: (provider: OAuthProviderId) => Promise<unknown>;
   refreshAppSettings?: () => Promise<void>;
   refreshProviderState: () => Promise<void>;
   setProviderFamilyDomain: (provider: OAuthProviderId) => Promise<void>;

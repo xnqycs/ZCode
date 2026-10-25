@@ -80,9 +80,8 @@ export function formatContextCacheHitRateLabel(
 function getBreakdownToneStyle(index: number): CSSProperties {
   return {
     backgroundColor:
-      CONTEXT_PROGRESS_TONE_COLORS[
-        Math.min(index, CONTEXT_PROGRESS_TONE_COLORS.length - 1)
-      ] ?? CONTEXT_PROGRESS_TONE_COLORS[0],
+      CONTEXT_PROGRESS_TONE_COLORS[Math.min(index, CONTEXT_PROGRESS_TONE_COLORS.length - 1)] ??
+      CONTEXT_PROGRESS_TONE_COLORS[0],
   };
 }
 
@@ -213,10 +212,7 @@ export function ChatContextUsage({
   );
 
   return (
-    <Context
-      usedTokens={renderableTaskUsage.used}
-      maxTokens={renderableTaskUsage.size}
-    >
+    <Context usedTokens={renderableTaskUsage.used} maxTokens={renderableTaskUsage.size}>
       <ContextTrigger
         aria-label={contextUsageLabel}
         className="text-foreground-subtle"
@@ -254,7 +250,10 @@ export function ChatContextUsage({
                 >
                   <div className="grid gap-1.5">
                     {breakdownSegments.map((segment, index) => (
-                      <div className="flex min-w-0 items-center gap-2 text-ui-sm" key={segment.source}>
+                      <div
+                        className="flex min-w-0 items-center gap-2 text-ui-sm"
+                        key={segment.source}
+                      >
                         <span
                           aria-hidden="true"
                           className="size-2 shrink-0 rounded-sm border border-border"
@@ -281,9 +280,7 @@ export function ChatContextUsage({
                   <span className="text-foreground-subtle">
                     {intl.formatMessage({ id: "chat.contextUsage.cacheHitRate" })}
                   </span>
-                  <span className="font-mono text-ui-sm text-foreground">
-                    {cacheHitRateLabel}
-                  </span>
+                  <span className="font-mono text-ui-sm text-foreground">{cacheHitRateLabel}</span>
                 </div>
               ) : null}
             </>

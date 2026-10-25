@@ -55,8 +55,6 @@ export function parseClientConfigSnapshot(payload: unknown): ClientConfigSnapsho
     uiPluginRecommendations:
       uiPluginRecommendationsSchema.safeParse(configs?.uiPluginRecommendations).data ?? [],
     zsrcUrl: zsrcSchema.safeParse(configs?.zsrc).data?.url ?? null,
-    ...(configs?.dynamicWorkflow === undefined
-      ? {}
-      : { dynamicWorkflow: configs.dynamicWorkflow }),
+    ...(configs?.dynamicWorkflow === undefined ? {} : { dynamicWorkflow: configs.dynamicWorkflow }),
   };
 }

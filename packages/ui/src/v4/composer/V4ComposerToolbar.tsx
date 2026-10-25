@@ -48,9 +48,7 @@ import {
   shouldShowManageModelsAction,
 } from "@/chat-input-toolbar/modelSelection.js";
 import { resolveV4ModelTriggerDisplay } from "@/v4/composer/modelTriggerDisplay.js";
-import {
-  setPendingSettingsSectionIntent,
-} from "@/lib/settingsNavigation.js";
+import { setPendingSettingsSectionIntent } from "@/lib/settingsNavigation.js";
 import { useTabStore } from "@/store/TabStoreProvider.js";
 import type { ModelSelectionView } from "@zcode/services";
 import type {

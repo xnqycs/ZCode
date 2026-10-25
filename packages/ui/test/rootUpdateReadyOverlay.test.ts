@@ -76,7 +76,6 @@ vi.mock("@/hooks/useServices.js", () => ({
   useOptionalServices: () => null,
 }));
 
-
 vi.mock("@/hooks/useWorkspaceServices.js", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/hooks/useWorkspaceServices.js")>();
 

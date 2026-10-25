@@ -196,7 +196,9 @@ function ModelProviderGroup({
   const providerIds = useMemo(
     () =>
       group.items
-        .filter((item) => !reorderableProviderIds || reorderableProviderIds.has(item.provider.providerId))
+        .filter(
+          (item) => !reorderableProviderIds || reorderableProviderIds.has(item.provider.providerId),
+        )
         .map((item) => item.provider.providerId),
     [group.items, reorderableProviderIds],
   );

@@ -5170,11 +5170,7 @@ export function SessionPane({
       externalTextInsertRequest={focused && sessionId === null ? composerTextInsertRequest : null}
       onExternalTextInsertApplied={handleExternalTextInsertApplied}
       autoFocusEnabled={focused}
-      disabled={
-        connecting ||
-        draftRuntimeRebuilding ||
-        queueEditActiveForCurrentComposer
-      }
+      disabled={connecting || draftRuntimeRebuilding || queueEditActiveForCurrentComposer}
       isWebRemoteControl={compactForRemoteControl}
       workspacePath={workspacePath}
       workspaceIdentity={workspaceIdentity}

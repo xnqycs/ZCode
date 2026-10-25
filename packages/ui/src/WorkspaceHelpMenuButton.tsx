@@ -4,13 +4,7 @@ import {
   TID_WORKSPACE_HELP_MENU_RESOURCE_MANAGER,
   TID_WORKSPACE_HELP_MENU_TRIGGER,
 } from "@zcode/shared/test-ids";
-import {
-  ActivityIcon,
-  CircleHelpIcon,
-  DownloadIcon,
-  InfoIcon,
-  RefreshCwIcon,
-} from "lucide-react";
+import { ActivityIcon, CircleHelpIcon, DownloadIcon, InfoIcon, RefreshCwIcon } from "lucide-react";
 import { Badge } from "@/components/ui/badge.js";
 import { Button } from "@/components/ui/button.js";
 import {
@@ -103,10 +97,7 @@ export function WorkspaceHelpMenuButton({
                 <span className="whitespace-nowrap">
                   {intl.formatMessage({ id: "desktopMenu.help.restartUpdateAction" })}
                 </span>
-                <Badge
-                  variant="secondary"
-                  className="h-4 px-1.5 py-0 bg-success/10 text-success"
-                >
+                <Badge variant="secondary" className="h-4 px-1.5 py-0 bg-success/10 text-success">
                   {updateMenu.labelValues?.version}
                 </Badge>
               </>

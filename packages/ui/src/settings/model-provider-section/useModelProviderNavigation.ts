@@ -60,7 +60,9 @@ export function useModelProviderNavigation({
     [navigationItems],
   );
 
-  const selectedNavItem = selectedNodeKey ? (navigationItemByKey.get(selectedNodeKey) ?? null) : null;
+  const selectedNavItem = selectedNodeKey
+    ? (navigationItemByKey.get(selectedNodeKey) ?? null)
+    : null;
   const fallbackNodeKey = navigationItems[0]?.key ?? null;
 
   useEffect(() => {

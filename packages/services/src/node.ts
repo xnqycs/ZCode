@@ -2676,10 +2676,7 @@ export function createLocalServices(options: {
     .register(IFileWatcherService, createFileWatcherService())
     .register(IOAuthService, oauthService)
     .register(ISourceServerWorkspaceService, sourceServerWorkspaceService)
-    .register(
-      IUsageStatsService,
-      createUsageStatsService({ zcodeAgentService }),
-    )
+    .register(IUsageStatsService, createUsageStatsService({ zcodeAgentService }))
     .register(IClientConfigService, clientConfigService)
     .register(IClientScenesService, createClientScenesService({ apiClient }))
     .register(

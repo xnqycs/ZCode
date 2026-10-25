@@ -13,7 +13,12 @@ const captured = vi.hoisted(() => ({
   exportLogs: vi.fn(async () => ({ success: true })),
   toast: vi.fn(() => 7),
   dismissToast: vi.fn(),
-  menuItems: [] as Array<{ label: string; testId?: string; disabled?: boolean; onSelect?: () => void }>,
+  menuItems: [] as Array<{
+    label: string;
+    testId?: string;
+    disabled?: boolean;
+    onSelect?: () => void;
+  }>,
   executeDesktopCommand: vi.fn(async () => undefined),
   updateMenu: {
     visible: true,
@@ -25,7 +30,8 @@ const captured = vi.hoisted(() => ({
 
 vi.mock("@/components/ui/dropdown-menu.js", () => ({
   DropdownMenu: ({ children }: { children: ReactNode }) => createElement("div", null, children),
-  DropdownMenuContent: ({ children }: { children: ReactNode }) => createElement("div", null, children),
+  DropdownMenuContent: ({ children }: { children: ReactNode }) =>
+    createElement("div", null, children),
   DropdownMenuItem: ({
     children,
     onSelect,
@@ -45,13 +51,18 @@ vi.mock("@/components/ui/dropdown-menu.js", () => ({
     captured.menuItems.push({ label, testId, onSelect, disabled });
     return createElement("div", { "data-testid": testId }, children);
   },
-  DropdownMenuTrigger: ({ children }: { children: ReactNode }) => createElement("div", null, children),
+  DropdownMenuTrigger: ({ children }: { children: ReactNode }) =>
+    createElement("div", null, children),
 }));
 
 vi.mock("@/ControlHintTooltip.js", () => ({
-  ControlHintTooltip: ({ children }: { children: ReactNode }) => createElement("div", null, children),
+  ControlHintTooltip: ({ children }: { children: ReactNode }) =>
+    createElement("div", null, children),
 }));
-vi.mock("@/components/ui/toast.js", () => ({ toast: captured.toast, dismissToast: captured.dismissToast }));
+vi.mock("@/components/ui/toast.js", () => ({
+  toast: captured.toast,
+  dismissToast: captured.dismissToast,
+}));
 vi.mock("@/hooks/useDesktopUpdateMenu.js", () => ({
   useDesktopUpdateMenu: (isDesktop: boolean) => ({
     ...captured.updateMenu,
@@ -103,7 +114,9 @@ describe("WorkspaceHelpMenuButton", () => {
       (item) => item.testId === TID_WORKSPACE_HELP_MENU_RESOURCE_MANAGER,
     );
     await resource?.onSelect?.();
-    expect(captured.executeDesktopCommand).toHaveBeenCalledWith(DesktopCommandIds.OpenResourceManager);
+    expect(captured.executeDesktopCommand).toHaveBeenCalledWith(
+      DesktopCommandIds.OpenResourceManager,
+    );
     await captured.menuItems[2]?.onSelect?.();
     expect(captured.executeDesktopCommand).toHaveBeenCalledWith(DesktopCommandIds.CheckForUpdates);
     await captured.menuItems[3]?.onSelect?.();

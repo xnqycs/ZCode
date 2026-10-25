@@ -777,21 +777,12 @@ export function AutomationsSection({
   const handleRefresh = useCallback(async () => {
     setRefreshing(true);
     try {
-      await Promise.all([
-        refresh(zcodeAgentService),
-        offPeakRefresh(offPeakTaskService),
-      ]);
+      await Promise.all([refresh(zcodeAgentService), offPeakRefresh(offPeakTaskService)]);
       setNow(Date.now());
     } finally {
       setRefreshing(false);
     }
-  }, [
-    offPeakGrayEnabled,
-    offPeakRefresh,
-    offPeakTaskService,
-    refresh,
-    zcodeAgentService,
-  ]);
+  }, [offPeakGrayEnabled, offPeakRefresh, offPeakTaskService, refresh, zcodeAgentService]);
 
   // New task 页模板卡跳转过来：消费预填草稿 → 切 idle tab + 打开创建表单预填。
   useEffect(() => {
@@ -1270,9 +1261,7 @@ export function AutomationsSection({
         <OffPeakEditView
           editing={editingTask}
           initialDraft={view.mode === "offpeak-create" ? (view.draft ?? null) : null}
-          modelSelectionView={
-            { revision: 0, providers: [] }
-          }
+          modelSelectionView={{ revision: 0, providers: [] }}
           defaultWorkspacePath={workspacePath ?? ""}
           defaultWorkspaceIdentity={workspaceIdentity}
           saving={

@@ -178,7 +178,6 @@ vi.mock("@/hooks/useModelProviders.js", () => ({
   useModelProviders: () => ({ loading: false, modelProviders: [] }),
 }));
 
-
 vi.mock("@/store/StoreProvider.js", () => ({
   useZCodeStoreWithDefault: (_selector: unknown, fallback: unknown) => fallback,
   useZCodeStore: (selector: (state: Record<string, unknown>) => unknown) =>
@@ -221,9 +220,6 @@ vi.mock("@/lib/settingsNavigation.js", () => ({
   shouldFallbackSettingsUsageTabToApp: () => false,
   writeLastSettingsSectionPreference: vi.fn(),
 }));
-
-
-
 
 vi.mock("@/settings/ModelProviderSection.js", () => ({
   ModelProviderSection: () => null,

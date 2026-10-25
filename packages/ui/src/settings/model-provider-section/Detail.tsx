@@ -1,4 +1,7 @@
-import { getProviderFormApiKeyManagementUrl, type ProviderSettingsFormProvider } from "@/lib/providerSettingsFormTypes.js";
+import {
+  getProviderFormApiKeyManagementUrl,
+  type ProviderSettingsFormProvider,
+} from "@/lib/providerSettingsFormTypes.js";
 import { useZCodeIntl } from "@/i18n/IntlProvider.js";
 import type { ModelConnectivityResult } from "@zcode/shared";
 import type { SavePersonalModelDraftInput } from "@zcode/provider";
