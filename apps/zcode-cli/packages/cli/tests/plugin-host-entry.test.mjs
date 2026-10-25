@@ -12,11 +12,20 @@ import {
   resolveBuildAliases,
   resolveBuildExternal,
 } from "../scripts/build.mjs";
+import {
+  createAgentCuaContractPlugin,
+  loadAgentCuaContractOverrides,
+} from "../scripts/agent-cua-contracts.mjs";
 
 const execFileAsync = promisify(execFile);
 const cliRoot = resolve(import.meta.dirname, "..");
 const forbiddenEvaluation = "AGENT_ENTRY_EVALUATED";
 const processTimeoutMs = 10_000;
+// 与 buildCli 一致：叠加 ZcodePro 后，这个 CJS 构建也必须使用派生契约，否则 vendor 的
+// top-level await 会在这里复现。未叠加时返回 undefined，插件列表保持原样。
+const cuaContractOverrides = await loadAgentCuaContractOverrides(
+  resolve(cliRoot, "../../../../packages/zcode-cua"),
+);
 
 for (const minify of [false, true]) {
   test(`plugin host avoids Agent initialization in ${minify ? "desktop" : "Node"} bundles`, async () => {
@@ -59,6 +68,7 @@ export async function main() {
         target: "node22",
         plugins: [
           createZodDedupePlugin({ expectedV4Version: await readZodBuildVersion() }),
+          ...(cuaContractOverrides ? [createAgentCuaContractPlugin(cuaContractOverrides)] : []),
           {
             name: "reject-agent-initialization",
             setup(builder) {

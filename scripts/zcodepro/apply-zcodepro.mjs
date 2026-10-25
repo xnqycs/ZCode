@@ -14,6 +14,7 @@ import { mkdir, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { getTargetPlatform } from "../../packages/desktop/scripts/target-platform.mjs";
+import { inspectAgentCuaContracts } from "../../apps/zcode-cli/packages/cli/scripts/agent-cua-contracts.mjs";
 
 const PRODUCER_PACKAGE_NAME = "@zcode/zcode-cua";
 const SUPPORTED_TARGET_KEY = "win32-x64";
@@ -52,6 +53,10 @@ const BROKER_SERVER_DTS_MISSING = [
 const OVERLAY_CONTRACT_TEST_SOURCE = `import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
+import {
+  attestOfficialCuaFrameContent,
+  findOfficialCuaFrameContentPair,
+} from "../frame-contract.js";
 
 // ZcodePro 运行时由 scripts/zcodepro/apply-zcodepro.mjs 叠加生成。这里只校验包形态契约，
 // 不启动真实 broker / Helper，也不依赖本机是否安装了 Computer Use 组件。
@@ -95,6 +100,16 @@ describe("ZcodePro overlay contract", () => {
     const scripts = manifest.scripts as Record<string, string>;
     expect(typeof scripts.build).toBe("string");
     expect(scripts.build.length).toBeGreaterThan(0);
+  });
+
+  it("attests the canonical image/image_ref frame from the real contract", () => {
+    const imageRef = { actionable: true, frame_id: "frame-1", width: 1280, height: 720 };
+    const content = [
+      { type: "image", data: "iVBORw0KGgo=", mimeType: "image/png" },
+      { type: "text", text: JSON.stringify({ image_ref: imageRef }) },
+    ];
+    expect(findOfficialCuaFrameContentPair(content)).toMatchObject({ imageIndex: 0, imageRefIndex: 1 });
+    expect(attestOfficialCuaFrameContent(content, "official_cua_frame_v1")).toEqual({ kind: "official_cua_frame_v1" });
   });
 });
 `;
@@ -634,6 +649,14 @@ export async function checkOverlay({ repoRoot, zcodeproDir, env = process.env })
     }
   }
 
+  const agentContracts = await inspectAgentCuaContracts(join(repoRoot, CUA_RELATIVE));
+  if (!agentContracts.constantMatchesPlaceholder) {
+    warnings.push(
+      `agent contract: frame integrity key ${String(agentContracts.frameIntegrityKey)} ` +
+        `differs from placeholder ${String(agentContracts.placeholderFrameIntegrityKey)}`,
+    );
+  }
+
   return {
     applied,
     missing,
@@ -647,6 +670,7 @@ export async function checkOverlay({ repoRoot, zcodeproDir, env = process.env })
       sha256: { entry: sha256(source.entryLf), addon: sha256(source.addonBytes) },
     },
     documentPlugins,
+    agentContracts,
     warnings,
   };
 }
@@ -769,6 +793,13 @@ async function runCli(argv) {
         `dirty=${report.producer.dirty}`,
     );
     log(`overlay: ${report.applied ? "applied" : "not applied"}`);
+    log(
+      `agent contracts: ${
+        report.agentContracts.derivable
+          ? "derivable"
+          : `not derivable (${report.agentContracts.reason})`
+      }`,
+    );
     const aligned = report.documentPlugins.filter((plugin) => plugin.aligned).length;
     log(`document plugins aligned: ${aligned}/${report.documentPlugins.length}`);
     for (const warning of report.warnings) log(`warning: ${warning}`);
