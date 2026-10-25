@@ -210,11 +210,16 @@ function toInstallerLogger(
   logger: OpenCuaAccessibilitySettingsOptions["logger"],
 ): CuaHelperInstallerLogger | undefined {
   if (!logger) return undefined;
+  // 修复原因：ZcodePro 的 broker-server.d.ts 把 CuaHelperInstallerOptions.logger 声明为
+  // unknown（占位包是结构化的 BrokerLogger），上下文参数推断因此丢失，noImplicitAny 会报
+  // TS7006/TS7019。这里按 fork 自身 logger 契约显式标注；traceId 不向下透传，仍被丢弃。
   return {
-    debug: (_traceId, ...args) => logger.debug?.(...args),
-    info: (_traceId, ...args) => (logger.info ?? logger.warn)(...args),
-    warn: (_traceId, ...args) => logger.warn(...args),
-    error: (_traceId, ...args) => (logger.error ?? logger.warn)(...args),
+    debug: (_traceId: string | undefined, ...args: unknown[]) => logger.debug?.(...args),
+    info: (_traceId: string | undefined, ...args: unknown[]) =>
+      (logger.info ?? logger.warn)(...args),
+    warn: (_traceId: string | undefined, ...args: unknown[]) => logger.warn(...args),
+    error: (_traceId: string | undefined, ...args: unknown[]) =>
+      (logger.error ?? logger.warn)(...args),
   };
 }
 

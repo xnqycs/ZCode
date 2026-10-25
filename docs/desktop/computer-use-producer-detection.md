@@ -22,6 +22,13 @@ Computer Use 的真实实现来自 workspace 包 `@zcode/zcode-cua`（producer�
 Sharp 的暂存与校验仍以“producer 是否声明 Sharp 依赖”为准（`isSharpRequiredByComputerUse`），
 与本检测一致：真实 producer 声明 Sharp，占位包不声明。
 
+## 叠加真实 producer 进行构建
+
+真实 producer 的运行时来自 ZcodePro，构建前用 `scripts/zcodepro/apply-zcodepro.mjs` 叠加到
+`packages/zcode-cua`，构建后可一键还原。叠加不修改本检测的判定：叠加后读到真实 producer，
+还原后回到占位包。目标平台仅 `win32-x64`。完整约束（校验、sha256 与 CRLF、依赖安装、还原、
+打包态 `ZCODE_CUA_DEV_MODE` 语义）见 [ZcodePro Computer Use 运行时叠加](zcodepro-overlay.md)。
+
 ## 所有者与接口
 
 - 唯一判定：`packages/desktop/scripts/computer-use-producer.mjs` 的 `readComputerUseProducer` /

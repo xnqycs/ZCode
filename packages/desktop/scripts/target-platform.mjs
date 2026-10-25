@@ -34,9 +34,11 @@ function normalizeTargetArch(rawArch) {
   }
 }
 
-export function getTargetPlatform() {
-  const targetOs = process.env.ZCODE_TARGET_OS ?? process.platform;
-  const targetArch = process.env.ZCODE_TARGET_ARCH ?? process.arch;
+// env 参数用于需要在进程外决定目标的调用方（如 scripts/zcodepro overlay 的单测）；
+// 默认仍读 process.env，打包脚本行为不变。
+export function getTargetPlatform(env = process.env) {
+  const targetOs = env.ZCODE_TARGET_OS ?? process.platform;
+  const targetArch = env.ZCODE_TARGET_ARCH ?? process.arch;
   const os = normalizeTargetOs(targetOs);
   const arch = normalizeTargetArch(targetArch);
 
