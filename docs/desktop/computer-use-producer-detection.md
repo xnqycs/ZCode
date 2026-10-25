@@ -29,6 +29,11 @@ Sharp 的暂存与校验仍以“producer 是否声明 Sharp 依赖”为准（`
 还原后回到占位包。目标平台仅 `win32-x64`。完整约束（校验、sha256 与 CRLF、依赖安装、还原、
 打包态 `ZCODE_CUA_DEV_MODE` 语义）见 [ZcodePro Computer Use 运行时叠加](zcodepro-overlay.md)。
 
+叠加后 agent CLI 的 CJS 单文件构建无法内联 `vendor/dist-index.js`（末尾 top-level await）。
+该构建只对 `frame-contract` / `request-access-contract` 做构建期派生，并在 metafile 中断言
+vendor 没有进入产物；这不会改变 producer 检测，也不影响 remote bundle 使用占位契约。细节见
+[ZcodePro Computer Use 运行时叠加](zcodepro-overlay.md) 的“agent CJS bundle 的契约处理”。
+
 ## 所有者与接口
 
 - 唯一判定：`packages/desktop/scripts/computer-use-producer.mjs` 的 `readComputerUseProducer` /

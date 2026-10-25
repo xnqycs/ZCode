@@ -177,6 +177,8 @@ Next steps:
 
 - ZcodePro 校验结果（版本、sha256、PE、dirty）；
 - 当前是否已叠加（标记 + 目标文件字节比对）；
+- agent CJS 构建的契约派生 dry-run：能否派生、真实常量与占位常量是否一致（见下文
+  “agent CJS bundle 的契约处理”）；
 - 四个文档插件（documents / pdf / presentations / spreadsheets）的版本与 ZcodePro `plugins/<name>-plugin`
   是否一致；不一致**只警告**，不影响退出码。
 
@@ -213,6 +215,47 @@ esbuild 的 CJS 输出不支持 top-level await，直接报错。处理方式：
   失败并指出缺失项，而不是悄悄把真实 vendor 打回 remote bundle。
 - 远程 bundle 的 Computer Use 因此与占位包完全一致：`createComputerUseRuntime` 返回不可用，
   broker 方法抛 `unavailable`，保持 fail-closed。
+
+## agent CJS bundle 的契约处理
+
+桌面 agent 的 `dist/zcode.cjs` 是 CJS 单文件，不能像 remote bundle 那样把两个契约换回占位实现：
+
+1. **占位契约会拒绝每一张 Computer Use 截图。** 占位 `attestOfficialCuaFrameContent` 恒返回
+   `undefined`；`apps/zcode-cli/packages/core/src/tool/executor/call-runner.ts` 在“官方 CUA 结果含图片
+   且 attest 失败”时抛 `Official CUA frame failed final model-content attestation`。CI 不会因此变红，
+   只会在真实使用时丢掉所有截图。
+2. **`request-access-contract` 也必须覆盖。** 它是对 `vendor/dist-index.js` 的纯转发，agent 的
+   `result-display.ts` 直接导入；只处理 `frame-contract` 仍会把 vendor 拉进 CJS 图。
+3. **agent 图只用到这两个子路径。** `createComputerUseRuntime`、`broker*`、`pip-session*`、
+   `host-display-contract` 只出现在 ESM 的 `node-repl-host` / `packages/services`，ESM 允许
+   top-level await。
+
+因此 `apps/zcode-cli/packages/cli/scripts/agent-cua-contracts.mjs` 在**检测到
+`vendor/dist-index.js`（即已叠加）时**，为这两个 specifier 提供构建期派生的无 vendor 副本；
+未叠加时返回 `undefined`，`build.mjs` 的插件列表与改动前完全一致。派生规则：
+
+- `frame-contract.js`：vendor 引用必须**恰好一次**且整行等于
+  `import { OFFICIAL_CUA_FRAME_INTEGRITY_META_KEY } from "./vendor/dist-index.js";`；
+  从 vendor 用 `var OFFICIAL_CUA_FRAME_INTEGRITY_META_KEY = "…";` 读取唯一常量并替换该行，
+  同时断言 `export { OFFICIAL_CUA_FRAME_INTEGRITY_META_KEY };` 仍存在。其余字节不动。
+- `request-access-contract.js`：从 vendor 截取
+  `var CUA_REQUEST_ACCESS_STATUS_META_KEY =` 到 `function attachCuaRequestAccessStatusMeta(` 之间的块，
+  要求块内只有一个 `external_exportsN` 绑定、顶层声明恰好是常量 / Zod schema / 读取函数三个，
+  把绑定换成 `z` 并前置 `import { z } from "zod";`。
+- 出现任何偏离（第二个 vendor import、多行 import、常量改名、块内新增依赖）都会让构建失败，
+  提示重新审视抽取；不会退回占位契约，也不会写入硬编码副本。
+
+构建结束的 `onEnd` 断言两件事：
+
+1. `metafile.inputs` 里两个虚拟契约模块（`zp-agent-cua:*`）确实被加载；
+2. 任何输入路径包含 `zcode-cua/vendor/` 都失败。
+
+所以以后 core/adapters 新增对 `@zcode/zcode-cua` 包根、`broker*` 或 `host-display-contract` 的导入，
+会在 agent CJS 构建阶段直接报错，而不是把 top-level await 带进桌面产物。
+
+`pnpm zcodepro:check` 还会对叠加后的包根做一次 dry-run 派生，报告“agent contracts: derivable /
+not derivable（原因）”，并在真实 `frame-contract` 的常量与 `placeholder/frame-contract.js` 不一致时
+给出警告；该检查只报告，不改变 `--check` 的退出语义。
 
 ## 行尾（CRLF）
 
