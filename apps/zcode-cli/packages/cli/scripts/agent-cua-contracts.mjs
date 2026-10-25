@@ -33,6 +33,13 @@ const FRAME_VENDOR_IMPORT =
 const FRAME_CONSTANT_NAME = "OFFICIAL_CUA_FRAME_INTEGRITY_META_KEY";
 const FRAME_EXPORT = `export { ${FRAME_CONSTANT_NAME} };`;
 const FRAME_CONSTANT_PATTERN = /^var OFFICIAL_CUA_FRAME_INTEGRITY_META_KEY = "([^"]+)";$/gm;
+// 生产端的 MCP 图片块是 { type, data, mimeType }，而 formatMcpToolResult 会把它改写成
+// 模型形状 { type, mediaType, dataUrl }（apps/zcode-cli/packages/core/src/mcp/index.ts）。
+// 桌面 agent 的 attest / 投影都跑在改写后的内容上，所以派生契约必须同时识别两种形状。
+const FRAME_IMAGE_BLOCK_DATA_CHECK = 'typeof block.data === "string" &&\n    block.data.length > 0';
+const FRAME_IMAGE_BLOCK_DATA_URL_CHECK =
+  '((typeof block.data === "string" &&\n      block.data.length > 0) ||\n' +
+  '      (typeof block.dataUrl === "string" &&\n        block.dataUrl.length > 0))';
 const REQUEST_ACCESS_START_MARKER = "var CUA_REQUEST_ACCESS_STATUS_META_KEY =";
 const REQUEST_ACCESS_END_MARKER = "function attachCuaRequestAccessStatusMeta(";
 const REQUEST_ACCESS_BINDING_PATTERN = /external_exports\d+/g;
@@ -57,6 +64,17 @@ function assertUniqueMarker(source, marker, label) {
   if (count !== 1) {
     throw new Error(`${label} must appear exactly once, found ${count}`);
   }
+}
+
+function widenFrameImageBlockMatcher(source) {
+  const count = countOccurrences(source, FRAME_IMAGE_BLOCK_DATA_CHECK);
+  if (count !== 1) {
+    throw new Error(
+      `expected exactly one isImageBlock data check in ${FRAME_CONTRACT_FILE}, found ${count}: ` +
+        "frame-contract 的 isImageBlock 形态变了，需要重新审视",
+    );
+  }
+  return source.replace(FRAME_IMAGE_BLOCK_DATA_CHECK, FRAME_IMAGE_BLOCK_DATA_URL_CHECK);
 }
 
 export function extractFrameContract(source, vendorSource) {
@@ -101,7 +119,7 @@ export function extractFrameContract(source, vendorSource) {
   if (derived.includes("./vendor/")) {
     throw new Error(`${FRAME_CONTRACT_FILE} derivation left a vendor reference behind`);
   }
-  return derived;
+  return widenFrameImageBlockMatcher(derived);
 }
 
 export function extractRequestAccessContract(vendorSource) {

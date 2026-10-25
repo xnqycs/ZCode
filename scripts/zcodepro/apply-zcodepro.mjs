@@ -15,6 +15,7 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { getTargetPlatform } from "../../packages/desktop/scripts/target-platform.mjs";
 import { inspectAgentCuaContracts } from "../../apps/zcode-cli/packages/cli/scripts/agent-cua-contracts.mjs";
+import { OVERLAY_CONTRACT_TEST_SOURCE } from "./overlay-contract-test-source.mjs";
 
 const PRODUCER_PACKAGE_NAME = "@zcode/zcode-cua";
 const SUPPORTED_TARGET_KEY = "win32-x64";
@@ -49,70 +50,6 @@ const BROKER_SERVER_DTS_MISSING = [
   "export declare function resolveCuaHelperInstallRoot(env: NodeJS.ProcessEnv): string | null;",
   "export declare function standaloneHelperCandidatePaths(env?: NodeJS.ProcessEnv): string[];",
 ];
-
-const OVERLAY_CONTRACT_TEST_SOURCE = `import { existsSync, readFileSync } from "node:fs";
-import { join } from "node:path";
-import { describe, expect, it } from "vitest";
-import {
-  attestOfficialCuaFrameContent,
-  findOfficialCuaFrameContentPair,
-} from "../frame-contract.js";
-
-// ZcodePro 运行时由 scripts/zcodepro/apply-zcodepro.mjs 叠加生成。这里只校验包形态契约，
-// 不启动真实 broker / Helper，也不依赖本机是否安装了 Computer Use 组件。
-const packageRoot = join(import.meta.dirname, "..");
-
-function readJson(path: string): Record<string, unknown> {
-  return JSON.parse(readFileSync(path, "utf8")) as Record<string, unknown>;
-}
-
-describe("ZcodePro overlay contract", () => {
-  const manifest = readJson(join(packageRoot, "package.json"));
-  const runtime = manifest.zcodeCuaRuntime as
-    | { schema?: unknown; windows?: { entry?: unknown; nativeAddon?: unknown } }
-    | undefined;
-
-  it("publishes a real producer with the Windows runtime contract", () => {
-    expect(manifest.name).toBe("@zcode/zcode-cua");
-    expect(manifest.zcodeCuaPlaceholder).toBeUndefined();
-    expect(runtime?.schema).toBe(1);
-    expect(Object.keys(runtime ?? {}).sort()).toEqual(["schema", "windows"]);
-    expect(Object.keys(runtime?.windows ?? {}).sort()).toEqual(["entry", "nativeAddon"]);
-  });
-
-  it("points the Windows contract at files that exist in the package", () => {
-    for (const relative of [runtime?.windows?.entry, runtime?.windows?.nativeAddon]) {
-      expect(typeof relative).toBe("string");
-      expect(existsSync(join(packageRoot, relative as string))).toBe(true);
-    }
-  });
-
-  it("keeps every exported entry file on disk", () => {
-    const exports = manifest.exports as Record<string, Record<string, string>>;
-    for (const entry of Object.values(exports)) {
-      for (const relative of Object.values(entry)) {
-        expect(existsSync(join(packageRoot, relative)), relative).toBe(true);
-      }
-    }
-  });
-
-  it("keeps the workspace build entry point", () => {
-    const scripts = manifest.scripts as Record<string, string>;
-    expect(typeof scripts.build).toBe("string");
-    expect(scripts.build.length).toBeGreaterThan(0);
-  });
-
-  it("attests the canonical image/image_ref frame from the real contract", () => {
-    const imageRef = { actionable: true, frame_id: "frame-1", width: 1280, height: 720 };
-    const content = [
-      { type: "image", data: "iVBORw0KGgo=", mimeType: "image/png" },
-      { type: "text", text: JSON.stringify({ image_ref: imageRef }) },
-    ];
-    expect(findOfficialCuaFrameContentPair(content)).toMatchObject({ imageIndex: 0, imageRefIndex: 1 });
-    expect(attestOfficialCuaFrameContent(content, "official_cua_frame_v1")).toEqual({ kind: "official_cua_frame_v1" });
-  });
-});
-`;
 
 class OverlayError extends Error {
   constructor(message) {
