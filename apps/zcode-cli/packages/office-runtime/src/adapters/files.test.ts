@@ -82,3 +82,17 @@ it("startup does not create an import directory in a preview-only workspace", as
   expect(await readdir(root)).toEqual([]);
   await importer.close();
 });
+
+it("counts pending import slots per session", async () => {
+  const { root, importer } = await fixture();
+  try {
+    for (let index = 0; index < 4; index += 1) await importer.begin("a.pdf", 1, "session-a");
+    await expect(importer.begin("a.pdf", 1, "session-a")).rejects.toThrow(/Too many/);
+    const id = await importer.begin("b.pdf", 1, "session-b");
+    await importer.chunk(id, 0, new Uint8Array([1]));
+    expect(await importer.finish(id)).toMatch(/b\.pdf$/);
+  } finally {
+    await importer.close();
+    await rm(root, { recursive: true, force: true });
+  }
+});

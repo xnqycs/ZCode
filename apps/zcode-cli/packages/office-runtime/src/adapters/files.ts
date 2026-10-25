@@ -21,6 +21,7 @@ import {
   type DocKind,
 } from "#office/contract.ts";
 import { TITLE } from "#office/wording.ts";
+import { DEFAULT_SESSION } from "#office/session.ts";
 
 function inside(root: string, target: string) {
   const rel = relative(root, target);
@@ -161,10 +162,20 @@ export function createWorkspaceFiles(workspace: string): WorkspaceFiles {
 const IMPORT_IDLE_MS = 10 * 60 * 1000;
 const MAX_IMPORTS = 4;
 
+/** Panel-driven uploads into a workspace copy; ids are UUIDs and never leave the process. */
+export interface DocumentImporter {
+  initialize(): Promise<void>;
+  begin(name: string, size: number, owner?: string): Promise<string>;
+  chunk(id: string, offset: number, bytes: Uint8Array): Promise<void>;
+  finish(id: string): Promise<string>;
+  cancel(id: string): Promise<void>;
+  close(): Promise<void>;
+}
+
 export function createDocumentImporter(
   workspace: string,
   options: { now?: () => number; onCleanupError?: (error: unknown) => void } = {},
-) {
+): DocumentImporter {
   const now = options.now ?? Date.now;
   const uploads = new Map<
     string,
@@ -175,6 +186,7 @@ export function createDocumentImporter(
       offset: number;
       handle: FileHandle;
       touched: number;
+      owner: string;
     }
   >();
   let queue: Promise<unknown> = Promise.resolve();
@@ -226,7 +238,7 @@ export function createDocumentImporter(
   return {
     // 只读工作区仍可预览；启动清扫失败只记录，不能阻断插件连接。
     initialize: () => run(() => sweep().catch((error) => options.onCleanupError?.(error))),
-    begin: (name: string, size: number) =>
+    begin: (name: string, size: number, owner = DEFAULT_SESSION) =>
       run(async () => {
         if (closed) throw new OfficeError("invalid_token", "Importer is closed.");
         if (basename(name) !== name || name.includes("\\") || !kindOf(name))
@@ -234,14 +246,15 @@ export function createDocumentImporter(
         if (!Number.isInteger(size) || size < 1 || size > MAX_FILE_BYTES)
           throw new OfficeError("file_too_large", "File size is outside the supported range.");
         await sweep();
-        if (uploads.size >= MAX_IMPORTS)
+        // 共享 server 下按会话计数，单个会话不能占满所有上传槽位。
+        if ([...uploads.values()].filter((upload) => upload.owner === owner).length >= MAX_IMPORTS)
           throw new OfficeError("invalid_token", "Too many pending imports.");
         const id = randomUUID();
         const directory = join((await parent())!, id);
         await mkdir(directory);
         try {
           const handle = await open(join(directory, ".partial"), "wx");
-          uploads.set(id, { directory, name, size, offset: 0, handle, touched: now() });
+          uploads.set(id, { directory, name, size, offset: 0, handle, touched: now(), owner });
           return id;
         } catch (error) {
           await rm(directory, { recursive: true, force: true }).catch((cleanupError) =>
