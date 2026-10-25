@@ -7,10 +7,6 @@ const h = vi.hoisted(() => {
   const services = {
     marketingTouchService: { query: vi.fn(), report: vi.fn().mockResolvedValue(undefined) },
     cloudContentService: {},
-    codingPlanSubscriptionService: {
-      claimManualPlan: vi.fn().mockResolvedValue({ success: true }),
-    },
-    usageStatsService: { getEntitlementSnapshot: vi.fn().mockResolvedValue({}) },
     providerSettingsService: { refresh: vi.fn().mockResolvedValue({}) },
   };
   const tabs = { openSettingsTab: vi.fn(), activeWorkspacePath: "/fixture" };
@@ -21,33 +17,9 @@ const h = vi.hoisted(() => {
     platform: { openExternal: vi.fn() },
     store: { user: { id: "fixture" }, isRestoringOAuthSession: false, requestLoginEntry: vi.fn() },
     intl: { formatMessage: ({ id }: { id: string }) => id },
-    upgrade: vi.fn(),
     rewards: vi.fn().mockResolvedValue(undefined),
   };
 });
-vi.mock("@/hooks/useProviderSettingsView.js", () => ({
-  useProviderSettingsView: () => ({
-    state: {
-      status: "ready",
-      view: {
-        revision: 1,
-        providers: [
-          {
-            providerId: "account:bigmodel-start-plan",
-            effectiveConfig: {
-              access: {
-                type: "zhipu-account",
-                accountType: "bigmodel",
-                mode: "start-plan",
-                entitled: true,
-              },
-            },
-          },
-        ],
-      },
-    },
-  }),
-}));
 vi.mock("@/hooks/useServices.js", () => ({ useServices: () => h.services }));
 vi.mock("@/hooks/usePlatform.js", () => ({ usePlatform: () => h.platform }));
 vi.mock("@/store/StoreProvider.js", () => ({
@@ -57,12 +29,6 @@ vi.mock("@/store/StoreProvider.js", () => ({
 vi.mock("@/store/TabStoreProvider.js", () => ({
   useTabStore: (selector: (state: typeof h.tabs) => unknown) => selector(h.tabs),
   useTabStoreApi: () => h.tabApi,
-}));
-vi.mock("@/WorkspaceSidebarFooterUsageSummary.js", () => ({
-  useWorkspaceSidebarFooterUsageSummaryState: () => ({}),
-}));
-vi.mock("@/settings/CodingPlanUpgradeDialogProvider.js", () => ({
-  useCodingPlanUpgradeDialog: () => ({ openCodingPlanUpgrade: h.upgrade }),
 }));
 vi.mock("@/rewards/RewardsProvider.js", () => ({ useOpenRewards: () => h.rewards }));
 vi.mock("@/i18n/IntlProvider.js", () => ({
@@ -159,5 +125,4 @@ it("rewards 导航委托窗口 Provider，保留一次 confirm 上报且不领�
       expect.objectContaining({ campaignId: "fixture-rewards", actionType: "confirm" }),
     ),
   );
-  expect(h.services.codingPlanSubscriptionService.claimManualPlan).not.toHaveBeenCalled();
 });

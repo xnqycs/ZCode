@@ -160,10 +160,6 @@ describe("OAuth 成功后的真实设置 CAS", () => {
             },
           },
           providerSettingsService: { refresh: providerRefresh },
-          usageStatsService: { getEntitlementSnapshot: async () => null },
-          codingPlanSubscriptionService: {
-            getEnterprisePricing: async () => ({ productList: [] }),
-          },
           broadcastService: {},
         } as never,
         refreshProviderState,

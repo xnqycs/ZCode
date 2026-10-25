@@ -76,12 +76,6 @@ vi.mock("@/hooks/useServices.js", () => ({
   useOptionalServices: () => null,
 }));
 
-vi.mock("@/settings/CodingPlanUpgradeDialogProvider.js", () => ({
-  CodingPlanUpgradeDialogProvider: ({ children }: { children: unknown }) => children,
-  useCodingPlanUpgradeDialog: () => ({
-    openCodingPlanUpgrade: vi.fn(),
-  }),
-}));
 
 vi.mock("@/hooks/useWorkspaceServices.js", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/hooks/useWorkspaceServices.js")>();

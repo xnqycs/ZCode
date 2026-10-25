@@ -366,15 +366,6 @@ vi.mock("@/hooks/useZCodeConfig.js", () => ({
   }),
 }));
 
-vi.mock("@/settings/model-provider-section/useEnterpriseCodingPlanProducts.js", () => ({
-  useEnterpriseCodingPlanProducts: () => ({
-    snapshot: null,
-    loading: false,
-    error: null,
-    refresh: vi.fn(async () => {}),
-  }),
-}));
-
 vi.mock("@/i18n/IntlProvider.js", () => ({
   useZCodeIntl: () => ({
     intl: {

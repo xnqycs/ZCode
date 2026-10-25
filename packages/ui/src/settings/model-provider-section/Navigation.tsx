@@ -27,8 +27,13 @@ import { renderModelProviderNavIcon } from "./utils.js";
 
 const restrictToVerticalAxis: Modifier = ({ transform }) => ({ ...transform, x: 0 });
 
-export function getSortableProviderId(item: ModelProviderNavItem): string {
-  return item.provider.providerId;
+export function getSortableProviderId(
+  item: ModelProviderNavItem,
+  reorderableProviderIds?: ReadonlySet<string>,
+): string | null {
+  return !reorderableProviderIds || reorderableProviderIds.has(item.provider.providerId)
+    ? item.provider.providerId
+    : null;
 }
 
 export function resolveReorderedProviderIdsForGroup(params: {
@@ -49,7 +54,7 @@ export function shouldShowModelProviderGroupLoadingIndicator(params: {
   presetLoading: boolean;
   customLoading: boolean;
 }): boolean {
-  return params.groupId === "custom" ? params.customLoading : false;
+  return params.groupId === "custom" ? params.customLoading : params.presetLoading;
 }
 
 export function resolveModelProviderSideNavLabel(item: ModelProviderNavItem): string {

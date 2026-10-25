@@ -18,6 +18,12 @@ import { useConfirmDialog } from "@/hooks/useConfirmDialog.js";
 import { usePlatform } from "@/hooks/usePlatform.js";
 import type { ModelConnectivityResult } from "@zcode/shared";
 
+export {
+  fuzzyMatch,
+  handleEndpointSuggestionPopoverOpenAutoFocus,
+  resolveEndpointSuggestionOpenRequest,
+} from "./model-provider-section/utils.js";
+
 export function ModelProviderSection({
   workspacePath = "",
   connectivityWorkspacePath,
