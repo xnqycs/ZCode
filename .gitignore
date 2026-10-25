@@ -75,3 +75,9 @@ packages/desktop/resources/macos-window-bounds/
 __pycache__/
 *.pyc
 .zcode-runtime
+
+# ZcodePro 叠加产物（scripts/zcodepro/apply-zcodepro.mjs 写入）来自闭源发行物，绝不入库。
+packages/zcode-cua/vendor/
+packages/zcode-cua/dist/
+packages/zcode-cua/build/
+packages/zcode-cua/.zcodepro-overlay.json

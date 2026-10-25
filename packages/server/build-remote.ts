@@ -1,5 +1,7 @@
 import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { build, type Plugin } from "esbuild";
+import { createRemoteCuaStubPlugin, loadRemoteCuaStub } from "./src/buildRemoteCuaStub.js";
 import { validateRemoteServerBundle } from "./buildRemoteValidation.js";
 import { loadBuiltinProviderConfig } from "../../scripts/builtin-provider-config.mjs";
 import { stageThirdPartyNotices } from "../../scripts/third-party-notices.mjs";
@@ -31,6 +33,12 @@ const nativeAddonPlugin: Plugin = {
   },
 };
 
+// 只有叠加过的树才把 CUA 入口换成 placeholder；普通构建继续走原解析路径。
+const remoteCuaStub = loadRemoteCuaStub(join(import.meta.dirname, "..", "zcode-cua"));
+if (remoteCuaStub) {
+  console.log("Remote bundle: Computer Use resolves to the placeholder runtime");
+}
+
 const buildResult = await build({
   entryPoints: ["src/entry-stdio.ts"],
   bundle: true,
@@ -38,7 +46,10 @@ const buildResult = await build({
   platform: "node",
   format: "cjs",
   target: "node22",
-  plugins: [nativeAddonPlugin],
+  plugins: [
+    nativeAddonPlugin,
+    ...(remoteCuaStub ? [createRemoteCuaStubPlugin(remoteCuaStub)] : []),
+  ],
   // CJS 环境没有 import.meta.url，通过 banner 注入等价变量，
   // 再用 define 全局替换，这样源码无需关心最终打包格式。
   banner: {
