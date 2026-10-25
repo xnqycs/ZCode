@@ -209,11 +209,12 @@ export const OFFICIAL_PLUGIN_DEFINITIONS: readonly OfficialPluginDefinition[] = 
   },
   ...(
     [
-      // 版本按插件各自升：pdf 0.2.1 起面板带中日韩字体回退，换新缓存目录，不复用 0.2.0 的旧缓存。
-      ["documents", "docx", "Documents", "Word文档", "0.2.0"],
-      ["pdf", "pdf", "PDF", "PDF", "0.2.1"],
-      ["presentations", "pptx", "Presentations", "演示文档", "0.2.0"],
-      ["spreadsheets", "xlsx", "Spreadsheets", "电子表格", "0.2.0"],
+      // 版本按插件各自升：pdf 0.2.1 起面板带中日韩字体回退，0.2.2 起换新缓存目录；其余文档插件
+      // 0.2.1 起声明 MCP server 按工作区隔离，均不复用旧缓存。
+      ["documents", "docx", "Documents", "Word文档", "0.2.1"],
+      ["pdf", "pdf", "PDF", "PDF", "0.2.2"],
+      ["presentations", "pptx", "Presentations", "演示文档", "0.2.1"],
+      ["spreadsheets", "xlsx", "Spreadsheets", "电子表格", "0.2.1"],
     ] as const
   ).map(
     ([name, skill, displayName, chineseName, version]): OfficialPluginDefinition => ({
