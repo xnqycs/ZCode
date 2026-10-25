@@ -915,3 +915,23 @@ exceptions:
       - packages/shared/src/processResource.ts
       - packages/desktop/src/main/processResourceRoleClassifier.ts
     reason: Telemetry removal moves the model attribution contract and keeps only local MCP process/resource data; module ownership and boundaries are unchanged, adopting the full CLI, shared and desktop directories is out of scope.
+  - id: zcodepro-remote-cua-placeholder
+    rule: unmanaged-new-file
+    paths:
+      - packages/zcode-cua/placeholder/broker-helper-constants.js
+      - packages/zcode-cua/placeholder/broker-helper-health.js
+      - packages/zcode-cua/placeholder/broker-ports.js
+      - packages/zcode-cua/placeholder/broker-server.js
+      - packages/zcode-cua/placeholder/broker-socket-path.js
+      - packages/zcode-cua/placeholder/broker.js
+      - packages/zcode-cua/placeholder/frame-contract.js
+      - packages/zcode-cua/placeholder/host-display-contract.js
+      - packages/zcode-cua/placeholder/index.js
+      - packages/zcode-cua/placeholder/pip-session-node.js
+      - packages/zcode-cua/placeholder/pip-session.js
+      - packages/zcode-cua/placeholder/request-access-contract.js
+    reason: ZcodePro overlay replaces the package entry files with the real producer, so the open-source placeholder implementations move verbatim to placeholder/ for the remote single-file bundle to keep Computer Use fail-closed. Contents are unchanged, no dependency edge or module boundary is added, and packages/zcode-cua is not a managed module.
+  - id: zcodepro-remote-cua-stub
+    rule: unmanaged-new-file
+    paths: [packages/server/src/buildRemoteCuaStub.ts]
+    reason: Remote bundle 的 esbuild alias 插件，只被 packages/server/build-remote.ts 构建脚本引用；它是构建期工具，不注册服务、不新增运行时依赖边或公共契约。packages/server 仍是未受管模块，接管整个 package 不在本次范围内。

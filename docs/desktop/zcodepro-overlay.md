@@ -94,7 +94,9 @@ ZCODE_TARGET_OS=win32 ZCODE_TARGET_ARCH=x64 pnpm zcodepro:apply -- --zcodepro /w
 - 从 `runtimes/zcode-cua` 复制 `*.js`、`*.d.ts`、`vendor/`；从 `runtimes/cua-helper` 复制 `dist/`、`build/`
   （**不复制 `node_modules/`**，依赖交给 pnpm 安装）。全部**复制**，不建符号链接：Windows runtime 要求
   producer 根是物理目录，symlink/junction 会被拒绝。
-- **保留不动**：`tsconfig.json`、`vitest.config.ts`。
+- **保留不动**：`tsconfig.json`、`vitest.config.ts`、`placeholder/`。包根 `*.js` 只做
+  `export * from "./placeholder/....js"` 转发，叠加只覆盖包根，`placeholder/` 始终是占位实现
+  （remote bundle 依赖它，见下文）。
 - 文本文件（`.js`、`.mjs`、`.cjs`、`.d.ts`、`.ts`、`.json`、`.md`）统一写成 LF；`.node` 等二进制按原始字节复制。
   原因见“行尾”一节。
 - 合成 `package.json`：以 ZcodePro 的清单为底，移除 `zcodeCuaPlaceholder`，保留 fork 的
@@ -188,6 +190,29 @@ Next steps:
 4. 校验 `git status --porcelain -- packages/zcode-cua pnpm-lock.yaml` 为空。
 
 还原后 `pnpm typecheck` 必须回到占位包的状态。
+
+## remote 单文件 bundle
+
+`packages/server` 的 `build:remote` 输出 `dist/remote/zcode-server.cjs`，供 SSH / WSL / Docker
+远程部署使用：部署端只上传这一个文件。远程工作区按设计不支持 Computer Use（见 ZcodePro README
+的兼容表）。叠加后的 producer 会通过 `vendor/dist-index.js` 把 broker 运行时内联进来，该文件包含
+top-level await：
+
+```js
+if (isMainThread && await isDirectMcpEntrypoint(import.meta.url, process.argv[1])) {
+```
+
+esbuild 的 CJS 输出不支持 top-level await，直接报错。处理方式：
+
+- `packages/zcode-cua/placeholder/` 保存占位实现；包根 `*.js` 只是转发导出，叠加只覆盖包根，
+  不会碰这个目录。
+- `packages/server/src/buildRemoteCuaStub.ts` 检测 `packages/zcode-cua/.zcodepro-overlay.json`：
+  存在时把 `@zcode/zcode-cua` 及全部 subpath 解析到 `placeholder/` 下的同名文件；未叠加时
+  返回 `undefined`，构建完全走原来的解析路径。
+- 映射直接来自当前 `package.json` 的 `exports`。如果新增导出却没有保留同名占位文件，构建会
+  失败并指出缺失项，而不是悄悄把真实 vendor 打回 remote bundle。
+- 远程 bundle 的 Computer Use 因此与占位包完全一致：`createComputerUseRuntime` 返回不可用，
+  broker 方法抛 `unavailable`，保持 fail-closed。
 
 ## 行尾（CRLF）
 
