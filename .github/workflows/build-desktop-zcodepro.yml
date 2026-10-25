@@ -1,0 +1,135 @@
+name: Build Desktop ZcodePro (unsigned)
+
+# 叠加 xnqycs/ZcodePro 的 Computer Use 运行时后构建 Windows x64 安装包。
+# 只上传 artifact，不创建 Release；官方构建仍由 build-desktop.yml 负责。
+on:
+  workflow_dispatch:
+    inputs:
+      zcodepro_ref:
+        description: "xnqycs/ZcodePro commit to overlay (full 40-character sha)"
+        required: true
+        default: "779bf8816adbad495be69f6b1d38409bad8c0554"
+        type: string
+      product:
+        description: "preview installs beside a signed ZCode.app; production uses the ZCode identity but is still unsigned"
+        required: true
+        default: preview
+        type: choice
+        options:
+          - preview
+          - production
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build-desktop-zcodepro-${{ github.ref }}
+  cancel-in-progress: false
+
+defaults:
+  run:
+    shell: bash
+
+env:
+  HUSKY: "0"
+  ZCODE_ENV: production
+  ZCODE_AUTO_UPDATE: "0"
+  ZCODE_TARGET_OS: win32
+  ZCODE_TARGET_ARCH: x64
+  ZCODE_PREVIEW_IDENTITY: ${{ inputs.product == 'production' && '0' || '1' }}
+  ZCODEPRO_DIR: ${{ github.workspace }}/zcodepro-runtime
+
+jobs:
+  build-windows-x64:
+    name: windows-x64
+    runs-on: windows-2022
+    timeout-minutes: 300
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # actions/checkout 的 path 必须位于 GITHUB_WORKSPACE 下，不能写到 ../ZcodePro。
+      # 这个目录不在 pnpm workspace glob 内，也不会被 desktop 的 files/extraResources 收集。
+      - name: Checkout ZcodePro runtime
+        uses: actions/checkout@v4
+        with:
+          repository: xnqycs/ZcodePro
+          ref: ${{ inputs.zcodepro_ref }}
+          path: zcodepro-runtime
+          persist-credentials: false
+
+      - name: Setup Node and pnpm
+        uses: ./.github/actions/setup
+        with:
+          # 叠加会改写 packages/zcode-cua/package.json，冻结安装必然失败；
+          # 这里只安装工具链，依赖在 overlay 之后手动安装。
+          install: "false"
+
+      - name: Apply ZcodePro overlay
+        env:
+          ZCODEPRO_REF: ${{ inputs.zcodepro_ref }}
+        run: |
+          set -euo pipefail
+          if [[ ! "${ZCODEPRO_REF}" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "zcodepro_ref must be a full 40-character commit sha: ${ZCODEPRO_REF}" >&2
+            exit 1
+          fi
+          node scripts/zcodepro/apply-zcodepro.mjs apply --zcodepro "${ZCODEPRO_DIR}"
+
+      # overlay 给 @zcode/zcode-cua 增加 sharp / express，pnpm-lock.yaml 与 package.json
+      # 不再一致，因此必须使用 --no-frozen-lockfile。apps/zcode-cli 的构建入口统一设置了
+      # PNPM_CONFIG_VERIFY_DEPS_BEFORE_RUN=false，不会在子 workspace 触发额外安装。
+      - name: Install overlaid dependencies
+        run: pnpm install --no-frozen-lockfile
+
+      - name: Build Windows package
+        run: |
+          set -euo pipefail
+          pnpm build:bootstrap
+          pnpm prepare:desktop-runtime
+          pnpm bundle:desktop -- --os win --arch x64 --skip-build --skip-prepare
+
+      # afterPack 的 finalizePackagedWindowsCuaHelper 已经校验了 resources/tools/cua-helper
+      # 的 manifest、entry/addon 哈希、PE 与依赖闭包；这里只补上本 overlay 的固定哈希契约。
+      - name: Verify packaged Computer Use helper
+        run: |
+          set -euo pipefail
+          node --input-type=module - <<'NODE'
+          import { access, readFile } from "node:fs/promises";
+          import { join, resolve } from "node:path";
+
+          const helperRoot = resolve(
+            "packages/desktop/dist/win-unpacked/resources/tools/cua-helper",
+          );
+          const manifest = JSON.parse(
+            await readFile(join(helperRoot, "runtime-manifest.json"), "utf8"),
+          );
+          const expected = {
+            entry: "def39fc99aa37f07dc9bffecd2b270243939b518567ca37835d0c2f42ea426ec",
+            addon: "0dee894c4be5cd0b886aafaaea68aa505c6999a5e65afeb6527b08ba0e04274c",
+          };
+          if (!manifest.entry || !manifest.addon) {
+            throw new Error("runtime-manifest.json is missing entry/addon paths");
+          }
+          for (const [key, value] of Object.entries(expected)) {
+            const actual = manifest.sha256?.[key];
+            if (actual !== value) {
+              throw new Error(
+                `runtime-manifest.json sha256.${key}=${actual}, expected ${value}`,
+              );
+            }
+            await access(join(helperRoot, manifest[key]));
+          }
+          console.log(`[zcodepro-verify] ${helperRoot} sha256 entry/addon verified`);
+          NODE
+
+      - name: Upload Windows artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: zcode-zcodepro-${{ inputs.product }}-windows-x64
+          path: |
+            packages/desktop/dist/*.exe
+            packages/desktop/dist/*.blockmap
+          if-no-files-found: error
+          retention-days: 7

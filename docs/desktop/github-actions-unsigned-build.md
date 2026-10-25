@@ -19,6 +19,7 @@
 | --------------------------------------------- | ------------------- | ----------------------------------------------------------------------------------------- |
 | `.github/workflows/ci.yml`                    | PR、main push、手动 | Node 24 / pnpm 10.33.2 安装，`typecheck`、`lint`、`db:schema:check`、架构检查、受影响单测 |
 | `.github/workflows/build-desktop.yml`         | 手动                | 六平台未签名安装包；默认创建 GitHub prerelease，可取消                                    |
+| `.github/workflows/build-desktop-zcodepro.yml` | 手动                | 叠加 ZcodePro Computer Use 运行时，只构建 Windows x64 未签名包；产物仅 artifact            |
 | `.github/actions/setup/action.yml`            | 被上述工作流复用    | 安装 `mise.toml` 固定的 Node 24.14.0、`packageManager` 指定的 pnpm，并执行冻结锁文件安装  |
 | `.github/scripts/build-linux-in-container.sh` | Linux matrix job    | 在 `rockylinux:8` 中安装 Node 24/pnpm、构建 Linux 包                                      |
 
@@ -50,6 +51,30 @@ pnpm bundle:desktop -- --os <mac|win|linux> --arch <x64|arm64> --skip-build --sk
 - `prepare:desktop-runtime` 准备当前平台的 agent bundle、native search 工具和 `bundled-agents`/`bundled-tools`。
 - `bundle:desktop` 只执行 electron-builder、运行时依赖校验和安装包体积审计；`--skip-build --skip-prepare` 避免重复构建。
 - Linux 的完整命令由 `.github/scripts/build-linux-in-container.sh` 在容器内执行。
+
+## ZcodePro 叠加构建
+
+`build-desktop-zcodepro.yml` 只构建 `windows-x64`，并在构建前把 `xnqycs/ZcodePro` 的检出叠加到
+`packages/zcode-cua`。输入 `zcodepro_ref` 固定为完整 40 位 commit sha（默认
+`779bf8816adbad495be69f6b1d38409bad8c0554`），工作流会拒绝分支名等非 sha 输入。
+
+安装顺序与官方构建不同：
+
+1. checkout 本仓库；
+2. 用 `actions/checkout@v4` 把 ZcodePro 检出到工作区内的 `zcodepro-runtime`。`actions/checkout`
+   不接受 `GITHUB_WORKSPACE` 之外的 `path`，所以不能写到 `../ZcodePro`；该目录不在 pnpm
+   workspace glob 内，也不会被 desktop 的 `files` / `extraResources` 收集；
+3. `./.github/actions/setup` 使用 `install: "false"`，只安装 Node 24.14.0 与 pnpm；
+4. 运行 overlay。叠加会给 `@zcode/zcode-cua` 增加 `sharp` / `express` 依赖；
+5. 运行 `pnpm install --no-frozen-lockfile`。此时 `pnpm-lock.yaml` 与 `package.json` 必然不一致，
+   冻结安装会失败；`apps/zcode-cli` 的构建入口设置了 `PNPM_CONFIG_VERIFY_DEPS_BEFORE_RUN=false`，
+   不会在子 workspace 触发第二次安装；
+6. 依次执行 `build:bootstrap`、`prepare:desktop-runtime`、`bundle:desktop`。
+
+`electron-builder` 的 `afterPack` 会调用 `finalizePackagedWindowsCuaHelper`，校验最终
+`resources/tools/cua-helper` 的 manifest、entry/addon 哈希、PE 架构与依赖闭包。工作流再补一条
+固定哈希断言：`sha256.entry` / `sha256.addon` 必须分别等于
+`def39fc9…26ec` / `0dee894c…274c`。产物只上传 artifact，保留 7 天，不创建 Release。
 
 ## 产品身份与自动更新
 
