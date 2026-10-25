@@ -69,11 +69,11 @@ git config --global --add safe.directory "$PWD"
 
 node --version
 pnpm --version
-ldd --version | head -n 1
+ldd --version
 
 # Rocky 8 默认 gcc 是 8，node-pty 需要 C++20；使用 GCC 12 但保持系统 glibc 2.28。
 source /opt/rh/gcc-toolset-12/enable
-gcc --version | head -n 1
+gcc --version
 
 # Rocky 8 默认 python3 是 3.6；node-gyp 11 的 gyp 生成器使用了 3.8+ 语法。
 export npm_config_python="${npm_config_python:-/usr/bin/python3.11}"
