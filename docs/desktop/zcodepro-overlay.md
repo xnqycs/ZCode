@@ -258,6 +258,57 @@ esbuild 的 CJS 输出不支持 top-level await，直接报错。处理方式：
 not derivable（原因）”，并在真实 `frame-contract` 的常量与 `placeholder/frame-contract.js` 不一致时
 给出警告；该检查只报告，不改变 `--check` 的退出语义。
 
+## node-repl-host 内联 vendor 的处理
+
+`packages/zcode-cua` 的包根 `index.js` 只是 `export { createComputerUseRuntime } from "./vendor/dist-index.js"` 的转发。叠加后的
+`vendor/dist-index.js` 不是一份纯 CUA 库：ZcodePro README 说明它是从官方 ZCode 3.16.3 的
+`node-repl-host` server bundle 提取出来的，因此文件里同时保留着官方宿主的外壳：
+
+- 开头两行是宿主 bundle 的 banner：
+
+  ```js
+  import { createRequire as __zcodeCreateRequire } from "node:module";
+  const require = __zcodeCreateRequire(import.meta.url);
+  ```
+
+- 约 132k 行处有两段顶层副作用块：工作线程入口
+  `if (!isMainThread && isWorkerCallData(workerData)) { … }` 和主入口
+  `if (isMainThread && await isDirectMcpEntrypoint(import.meta.url, process.argv[1])) { … }`。
+
+`apps/zcode-cli/packages/node-repl-host/src/server.ts` 自身也有同样形状的 banner 和两段入口守卫。
+esbuild 把 vendor 内联进 `dist/mcp/server.js` 后，同一个 ESM 文件里出现两套：
+
+1. 两条 `__zcodeCreateRequire` import → `SyntaxError: Identifier '__zcodeCreateRequire' has already been declared`，服务启动即崩，
+   MCP 客户端看到 `Version negotiation failed`。
+2. 两个主入口守卫的条件完全相同，直接执行时会起两个 `serveStdio` 实例抢同一份 stdio。实测（只删掉重复 import 行后）
+   每个请求返回两条相同 id 的响应。
+3. 两个工作线程守卫都匹配同一个 `WORKER_KIND = "zcode-node-repl-call"`。每个 server 实例的 Worker 里两段代码都命中，
+   实测一次 `js` 调用用户代码共执行 4 次（2 个 server × 2 段守卫），并 `postMessage` 两次。
+
+修复在构建期完成，不改磁盘上的 vendor 文件：
+`apps/zcode-cli/packages/node-repl-host/scripts/vendor-embed.mjs` 的 `onLoad` 只匹配叠加后的
+`packages/zcode-cua/vendor/dist-index.js` 这一个绝对路径，在内存里做以下变换：
+
+1. 去掉开头的 banner import 与 `const require`。宿主的 banner 提供同名绑定，vendor 内对 `require`
+   的引用落到宿主的 `createRequire(import.meta.url)` 上，语义相同。
+2. 按精确锚点定位并用括号配平（跳过字符串、模板字符串与注释，不用行号）整块删除工作线程入口和主入口。
+3. 用 esbuild 的解析器（`supported: { "top-level-await": false }`）确认变换结果里不再有 top-level await；
+   `src/server.ts` 自己的顶部 await 仍保留在宿主入口。
+4. 构建结束的 `onEnd` 检查产物：`__zcodeCreateRequire` banner import、`isDirectMcpEntrypoint(import.meta.url`
+   顶层守卫、`new Worker(`、`"zcode-node-repl-call"` 字面量都必须恰好一处，且不能出现
+   `isDirectMcpEntrypoint2` / `WORKER_KIND2` / `Worker2` 这类重复标识。
+
+任一锚点缺失、出现两次、括号不配平、变换后仍有顶层 await 或守卫调用，都会让构建失败，并提示
+“vendor 的结构变了，需要重新审视内联策略”；不会退回模糊匹配。测试覆盖：
+
+- `test/vendor-embed.test.ts`：小型 fixture 的正常/缺失/重复/不配平/顶层 await 分支，以及用与 `build.mjs`
+  相同关键选项构建“宿主入口 + 假 vendor”的对照——不加插件时 `node --check` 失败并出现重复 import，加插件后
+  只剩一套入口与一处 `new Worker`。
+- `test/vendor-embed-smoke.test.ts`：对真实构建出的叠加态 bundle 启动进程，完成 MCP 握手、`tools/list` 和一次
+  可计数副作用的 `js` 调用，断言每个响应 id 只出现一次、副作用只执行一次。需要先应用叠加，否则跳过。
+
+未叠加（占位包没有 `vendor/dist-index.js`）时 `loadVendorEmbedTransform` 返回 `undefined`，插件列表保持原样，
+产物与改动前逐字节相同（回归验证会对比构建产物的 sha256）。仓库不保存、不提交任何 vendor 内容。
 ### 图片块形状
 
 Fork 里有两套图片块：
