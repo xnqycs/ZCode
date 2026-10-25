@@ -24,8 +24,6 @@ export function createE2EStartupCredentialSeed(
       fileName === "marketing-touch-rewards.test.ts" ||
       fileName === "jwt-401-auto-logout.test.ts" ||
       isRequestSecuritySpec(fileName) ||
-      fileName === "coding-plan-upgrade-webview-refresh-provider.test.ts" ||
-      fileName === "start-plan-manual-claim-experience.test.ts" ||
       fileName === "provider-family-responsive.test.ts" ||
       fileName === "conversation-session-offpeak-subagent-model-inheritance.test.ts" ||
       fileName === "conversation-session-off-peak-invalid-ticket.test.ts"

@@ -31,7 +31,6 @@ describe("desktop e2e startup credentials", () => {
     const fixture = Object.freeze({ ...restoredOAuthCredentials });
     expect(
       createE2EStartupCredentialSeed({
-        specs: ["coding-plan-team-usage.test.ts"],
         accountMock: true,
         legacyAuthToken: "fake-auth-token",
         restoredOAuthCredentials: fixture,
@@ -106,7 +105,6 @@ describe("desktop e2e startup credentials", () => {
   it.each([
     "conversation-session-offpeak-subagent-model-inheritance.test.ts",
     "conversation-session-off-peak-invalid-ticket.test.ts",
-    "coding-plan-upgrade-webview-refresh-provider.test.ts",
     "marketing-touch-rewards.test.ts",
   ])("%s 保留本地 Start 余额/请求鉴权所需 JWT", (spec) => {
     expect(

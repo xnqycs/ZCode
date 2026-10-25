@@ -323,8 +323,8 @@ describe("desktopCommandHandlers resolveFeedbackUrl", () => {
     });
 
     expect(sessionFromPartitionMock).toHaveBeenCalledWith("persist:zcode-coding-plan");
-    expect(sessionFromPartitionMock).toHaveBeenCalledWith("persist:zcode-rewards");
-    expect(codingPlanPartitionSession.clearStorageData).toHaveBeenCalledTimes(2);
+    expect(sessionFromPartitionMock).not.toHaveBeenCalledWith("persist:zcode-rewards");
+    expect(codingPlanPartitionSession.clearStorageData).toHaveBeenCalledTimes(1);
     expect(commandOptions.logger.info).toHaveBeenCalledWith(
       "[coding-plan-webview] cleared persistent partition storage",
     );
