@@ -237,7 +237,8 @@ esbuild 的 CJS 输出不支持 top-level await，直接报错。处理方式：
 - `frame-contract.js`：vendor 引用必须**恰好一次**且整行等于
   `import { OFFICIAL_CUA_FRAME_INTEGRITY_META_KEY } from "./vendor/dist-index.js";`；
   从 vendor 用 `var OFFICIAL_CUA_FRAME_INTEGRITY_META_KEY = "…";` 读取唯一常量并替换该行，
-  同时断言 `export { OFFICIAL_CUA_FRAME_INTEGRITY_META_KEY };` 仍存在。其余字节不动。
+  同时断言 `export { OFFICIAL_CUA_FRAME_INTEGRITY_META_KEY };` 仍存在。之后只做下面的
+  `isImageBlock` 变换，其余字节不动。
 - `request-access-contract.js`：从 vendor 截取
   `var CUA_REQUEST_ACCESS_STATUS_META_KEY =` 到 `function attachCuaRequestAccessStatusMeta(` 之间的块，
   要求块内只有一个 `external_exportsN` 绑定、顶层声明恰好是常量 / Zod schema / 读取函数三个，
@@ -308,6 +309,41 @@ esbuild 把 vendor 内联进 `dist/mcp/server.js` 后，同一个 ESM 文件里�
 
 未叠加（占位包没有 `vendor/dist-index.js`）时 `loadVendorEmbedTransform` 返回 `undefined`，插件列表保持原样，
 产物与改动前逐字节相同（回归验证会对比构建产物的 sha256）。仓库不保存、不提交任何 vendor 内容。
+### 图片块形状
+
+Fork 里有两套图片块：
+
+| 位置 | 形状 |
+| --- | --- |
+| MCP 原始结果（生产端输出） | `{ type: "image", data: "<base64>", mimeType }` |
+| 进入模型的消息（`ModelImageContentBlock`，`apps/zcode-cli/packages/contracts/src/model/index.ts`） | `{ type: "image", mediaType, dataUrl, source? }`，没有 `data` |
+
+`apps/zcode-cli/packages/core/src/mcp/index.ts` 的 `formatContentBlock` 会把前者改写成后者；而
+`apps/zcode-cli/packages/core/src/tool/executor/call-runner.ts` 对**改写之后**的
+`finalModelContent` 调用 `attestOfficialCuaFrameContent`，`result-serialization.ts` 的官方帧投影也走
+同一套配对逻辑。ZcodePro `frame-contract.js` 的 `isImageBlock` 只认 `typeof block.data === "string"`，
+对模型形状永远不成立，于是所有截图类工具都会以
+`Official CUA frame failed final model-content attestation` 失败（枚举、键盘、设值不受影响）。
+
+`findOfficialCuaFrameContentPair` / `isImageBlock` / `attestOfficialCuaFrameContent` 不存在于官方
+`vendor/dist-index.js`（grep 为 0 处），是 ZcodePro `runtimes/zcode-cua/frame-contract.js` 自己维护的代码
+（提交 db12da4），因此没有“必须与官方字节一致”的约束。派生时增加一次精确文本变换：把 `isImageBlock`
+中恰好一处的
+
+```js
+typeof block.data === "string" &&
+    block.data.length > 0
+```
+
+替换为同时接受两种字段的 `(data || dataUrl)` 判断。匹配次数必须恰好为 1；为 0 或 2 时构建失败并提示
+“frame-contract 的 isImageBlock 形态变了，需要重新审视”。变换只放宽图片块判断：
+`findOfficialCuaFrameContentPair` 返回的 `image` / `imageRef` / 下标保持不变，`image_ref` 文本块的
+四个固定键与 `actionable === true` 校验不动。`request-access-contract` 不处理图片块，派生不受影响。
+
+正向测试必须同时覆盖 MCP 原始 `data` 形状和 `formatMcpToolResult` 之后的 `dataUrl` 形状；只测原始形状
+会再次漏掉这个回归。`apps/zcode-cli/packages/cli/tests/agent-cua-contracts.test.mjs` 中的端到端用例直接
+把真实 `formatMcpToolResult` 的输出交给派生契约，`overlay-contract.test.ts` 也会用叠加后的真实文件做一次
+派生校验。
 
 ## 行尾（CRLF）
 

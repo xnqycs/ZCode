@@ -7,6 +7,7 @@ import { dirname, join } from "node:path";
 import test from "node:test";
 import { pathToFileURL } from "node:url";
 import { runInNewContext } from "node:vm";
+import { formatMcpToolResult } from "@zcode/core";
 import { build } from "esbuild";
 import {
   createAgentCuaContractPlugin,
@@ -28,10 +29,39 @@ export function isOfficialCuaImageRefText(text) {
   if (typeof text !== "string") return false;
   try {
     const parsed = JSON.parse(text);
-    return parsed?.image_ref?.actionable === true;
+    if (!isRecord(parsed) || Object.keys(parsed).length !== 1) return false;
+    const ref = parsed.image_ref;
+    if (!isRecord(ref)) return false;
+    if (Object.keys(ref).sort().join(",") !== "actionable,frame_id,height,width") return false;
+    return (
+      typeof ref.frame_id === "string" &&
+      ref.frame_id.length > 0 &&
+      Number.isInteger(ref.width) &&
+      ref.width > 0 &&
+      Number.isInteger(ref.height) &&
+      ref.height > 0 &&
+      ref.actionable === true
+    );
   } catch {
     return false;
   }
+}
+
+function isRecord(value) {
+  return typeof value === "object" && value !== null;
+}
+
+function isImageBlock(block) {
+  return (
+    isRecord(block) &&
+    block.type === "image" &&
+    typeof block.data === "string" &&
+    block.data.length > 0
+  );
+}
+
+function isImageRefTextBlock(block) {
+  return isRecord(block) && block.type === "text" && isOfficialCuaImageRefText(block.text);
 }
 
 export function findOfficialCuaFrameContentPair(content) {
@@ -39,13 +69,7 @@ export function findOfficialCuaFrameContentPair(content) {
   for (let index = 0; index + 1 < content.length; index += 1) {
     const image = content[index];
     const imageRef = content[index + 1];
-    if (
-      image?.type === "image" &&
-      typeof image.data === "string" &&
-      image.data.length > 0 &&
-      imageRef?.type === "text" &&
-      isOfficialCuaImageRefText(imageRef.text)
-    ) {
+    if (isImageBlock(image) && isImageRefTextBlock(imageRef)) {
       return { image, imageRef, imageIndex: index, imageRefIndex: index + 1 };
     }
   }
@@ -124,6 +148,36 @@ const CANONICAL_CONTENT = [
   { type: "image", data: "iVBORw0KGgo=", mimeType: "image/png" },
   { type: "text", text: CANONICAL_IMAGE_REF_TEXT },
 ];
+
+// formatMcpToolResult 把 MCP 的 { type, data, mimeType } 改写成模型形状。
+const MODEL_IMAGE_BLOCK = {
+  type: "image",
+  mediaType: "image/jpeg",
+  dataUrl: "data:image/jpeg;base64,/9j/4AAQ",
+  source: {
+    id: "mcp-image",
+    kind: "inline",
+    mimeType: "image/jpeg",
+    placeholder: "MCP image",
+    sizeBytes: 12,
+  },
+};
+
+const MODEL_IMAGE_CONTENT = [
+  MODEL_IMAGE_BLOCK,
+  { type: "text", text: CANONICAL_IMAGE_REF_TEXT },
+];
+
+const PRODUCER_MCP_RESULT = {
+  content: [
+    { type: "image", data: "/9j/4AAQSkZJRg==", mimeType: "image/jpeg" },
+    { type: "text", text: CANONICAL_IMAGE_REF_TEXT },
+    { type: "text", text: "window: main" },
+  ],
+  _meta: {
+    "zcode/fixture-frame-integrity": { version: 1, sha256: "0".repeat(64) },
+  },
+};
 
 const VALID_REQUEST_ACCESS = {
   schemaVersion: 1,
@@ -291,6 +345,118 @@ test("derives vendor-free contracts and keeps runtime behaviour in the CJS bundl
       "owner",
     );
   });
+});
+
+test("attests model-shaped image blocks produced by the MCP formatter", async () => {
+  await withCuaFixture(async ({ cuaRoot }) => {
+    const overrides = await loadAgentCuaContractOverrides(cuaRoot);
+    const contracts = evaluate(
+      await buildContracts({ cuaRoot, plugins: [createAgentCuaContractPlugin(overrides)] }),
+    );
+
+    const pair = contracts.findOfficialCuaFrameContentPair(MODEL_IMAGE_CONTENT);
+    assert.equal(pair.imageIndex, 0);
+    assert.equal(pair.imageRefIndex, 1);
+    assert.equal(pair.image, MODEL_IMAGE_BLOCK);
+    assert.equal(pair.imageRef, MODEL_IMAGE_CONTENT[1]);
+    assert.equal(
+      contracts.attestOfficialCuaFrameContent(MODEL_IMAGE_CONTENT, "official_cua_frame_v1").kind,
+      "official_cua_frame_v1",
+    );
+  });
+});
+
+test("rejects malformed image/image_ref pairs in both shapes", async () => {
+  await withCuaFixture(async ({ cuaRoot }) => {
+    const overrides = await loadAgentCuaContractOverrides(cuaRoot);
+    const contracts = evaluate(
+      await buildContracts({ cuaRoot, plugins: [createAgentCuaContractPlugin(overrides)] }),
+    );
+    const imageRef = { type: "text", text: CANONICAL_IMAGE_REF_TEXT };
+    const nonActionableRef = {
+      type: "text",
+      text: JSON.stringify({
+        image_ref: { actionable: false, frame_id: "frame-1", width: 1280, height: 720 },
+      }),
+    };
+    const malformed = [
+      ["model dataUrl is empty", [{ ...MODEL_IMAGE_BLOCK, dataUrl: "" }, imageRef]],
+      ["model dataUrl is not a string", [{ ...MODEL_IMAGE_BLOCK, dataUrl: 42 }, imageRef]],
+      ["raw data is empty", [{ type: "image", data: "", mimeType: "image/png" }, imageRef]],
+      ["raw data is not a string", [{ type: "image", data: 42, mimeType: "image/png" }, imageRef]],
+      ["type is not image", [{ ...MODEL_IMAGE_BLOCK, type: "file" }, imageRef]],
+      ["image_ref is not actionable", [MODEL_IMAGE_BLOCK, nonActionableRef]],
+      ["image_ref has a missing key", [
+        MODEL_IMAGE_BLOCK,
+        {
+          type: "text",
+          text: JSON.stringify({
+            image_ref: { actionable: true, frame_id: "frame-1", width: 1280 },
+          }),
+        },
+      ]],
+      ["next block is not an image_ref", [MODEL_IMAGE_BLOCK, { type: "text", text: "not an image ref" }]],
+      ["only the image block", [MODEL_IMAGE_BLOCK]],
+    ];
+    for (const [label, content] of malformed) {
+      assert.equal(contracts.findOfficialCuaFrameContentPair(content), undefined, label);
+      assert.equal(
+        contracts.attestOfficialCuaFrameContent(content, "official_cua_frame_v1"),
+        undefined,
+        label,
+      );
+    }
+  });
+});
+
+test("end-to-end: the real MCP formatter output passes the derived attestation", async () => {
+  const modelContent = formatMcpToolResult(PRODUCER_MCP_RESULT);
+  assert.ok(Array.isArray(modelContent));
+  assert.equal(modelContent[0].type, "image");
+  assert.equal(typeof modelContent[0].dataUrl, "string");
+  assert.equal(modelContent[0].data, undefined);
+
+  await withCuaFixture(async ({ cuaRoot }) => {
+    const overrides = await loadAgentCuaContractOverrides(cuaRoot);
+    const contracts = evaluate(
+      await buildContracts({ cuaRoot, plugins: [createAgentCuaContractPlugin(overrides)] }),
+    );
+    const pair = contracts.findOfficialCuaFrameContentPair(modelContent);
+    assert.equal(pair.imageIndex, 0);
+    assert.equal(pair.imageRefIndex, 1);
+    assert.equal(
+      contracts.attestOfficialCuaFrameContent(modelContent, "official_cua_frame_v1").kind,
+      "official_cua_frame_v1",
+    );
+  });
+});
+
+test("frame derivation rejects a changed isImageBlock shape", () => {
+  const renamed = FRAME_CONTRACT_SOURCE.replaceAll("block.data", "block.payload");
+  assert.throws(
+    () => extractFrameContract(renamed, VENDOR_SOURCE),
+    /isImageBlock 形态变了，需要重新审视/,
+  );
+});
+
+test("frame derivation rejects a duplicated isImageBlock data check", () => {
+  const duplicated = FRAME_CONTRACT_SOURCE.replace(
+    "function isImageBlock(block) {",
+    `function isImageBlockDuplicate(block) {
+  return (
+    isRecord(block) &&
+    block.type === "image" &&
+    typeof block.data === "string" &&
+    block.data.length > 0
+  );
+}
+
+function isImageBlock(block) {`,
+  );
+  assert.throws(
+    () => extractFrameContract(duplicated, VENDOR_SOURCE),
+    /isImageBlock 形态变了，需要重新审视/,
+  );
 });
 
 test("frame derivation rejects a missing vendor constant", () => {
