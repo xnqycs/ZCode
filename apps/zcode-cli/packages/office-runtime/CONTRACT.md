@@ -8,3 +8,4 @@
 - 构建必定产出 `contract.ts` 的 `OFFICE_RUNTIME_OUTPUTS`。官方插件定义、SEA 清单、桌面打包与远端资产都把它们列为必需资产，改动产物路径时这几处要一起改。
 - 产物自包含：`dist/server.mjs` 与面板脚本由 esbuild 打包全部依赖，运行时不读取 `node_modules`；第三方许可随产物写入 `dist/THIRD_PARTY_NOTICES.txt`。
 - 查看器只读：面板和工具从不写工作区文件。
+- 同一工作区的多个会话共享一个 MCP server 进程（插件声明 `isolation: "workspace"`）。解析缓存与文件句柄表共享，当前文档、面板视图、序号与句柄归属按 `_meta` 会话 id 隔离；无 id 时落到 `"default"`。详见 [src/CONTRACT.md](src/CONTRACT.md#sessions)。

@@ -9,16 +9,17 @@ it("keeps view reports separate and never picks the last writer when ambiguous",
       throw new Error("not needed");
     },
   });
-  await owner.report({ viewId: "first", path: "paper.pdf", at: "page:1" });
-  await owner.report({ viewId: "second", path: "report.docx", at: "p:1" });
-  expect(owner.views()).toHaveLength(2);
-  expect(owner.view().path).toBeNull();
-  expect(owner.view("first").path).toBe("paper.pdf");
-  expect(owner.view("second").path).toBe("report.docx");
-  owner.releaseView("second");
-  expect(owner.view().path).toBe("paper.pdf");
-  owner.close();
-  expect(owner.views()).toEqual([]);
+  const session = owner.session();
+  await session.report({ viewId: "first", path: "paper.pdf", at: "page:1" });
+  await session.report({ viewId: "second", path: "report.docx", at: "p:1" });
+  expect(session.views()).toHaveLength(2);
+  expect(session.view().path).toBeNull();
+  expect(session.view("first").path).toBe("paper.pdf");
+  expect(session.view("second").path).toBe("report.docx");
+  session.releaseView("second");
+  expect(session.view().path).toBe("paper.pdf");
+  await session.close();
+  expect(session.views()).toEqual([]);
 });
 
 it("a report finishing after release cannot resurrect a closed viewer", async () => {
@@ -39,9 +40,10 @@ it("a report finishing after release cannot resurrect a closed viewer", async ()
       throw new Error("not needed");
     },
   });
-  const pending = owner.report({ viewId: "closed", path: "paper.pdf" });
-  owner.releaseView("closed");
+  const session = owner.session();
+  const pending = session.report({ viewId: "closed", path: "paper.pdf" });
+  session.releaseView("closed");
   release();
   await pending;
-  expect(owner.views()).toEqual([]);
+  expect(session.views()).toEqual([]);
 });
