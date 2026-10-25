@@ -87,7 +87,6 @@ vi.mock("@zcode/shared", () => ({
         sanitizedKeys.has(key.toUpperCase()) ||
         key.toUpperCase().startsWith("OTEL_") ||
         key.toUpperCase().startsWith("ZCODE_TELEMETRY_") ||
-        key.toUpperCase() === "ZCODE_MODEL_TELEMETRY_ENABLED" ||
         /^(npm_config|yarn|pnpm)_(http_proxy|https_proxy|proxy|all_proxy|no_proxy|cafile|ca)$/i.test(
           key,
         )
@@ -98,18 +97,6 @@ vi.mock("@zcode/shared", () => ({
     }
     return sanitized;
   },
-  readZCodeAgentTelemetryEnv: (env: Record<string, string | undefined>) =>
-    Object.fromEntries(
-      Object.entries(env).filter(([key, value]) => {
-        const upperKey = key.toUpperCase();
-        return (
-          value != null &&
-          (upperKey.startsWith("OTEL_") ||
-            upperKey.startsWith("ZCODE_TELEMETRY_") ||
-            upperKey === "ZCODE_MODEL_TELEMETRY_ENABLED")
-        );
-      }),
-    ),
   buildZCodeToolEnvPassthroughEnv: (env: Record<string, string | undefined>) => {
     const captured: Record<string, string> = {};
     for (const [key, value] of Object.entries(env)) {
@@ -194,7 +181,6 @@ const AMBIENT_TOOL_PASSTHROUGH_ENV_KEYS = new Set([
   "REQUESTS_CA_BUNDLE",
   "CURL_CA_BUNDLE",
   "GIT_SSL_CAINFO",
-  "ZCODE_MODEL_TELEMETRY_ENABLED",
 ]);
 const AMBIENT_PACKAGE_MANAGER_PROXY_ENV_PATTERN =
   /^(npm_config|yarn|pnpm)_(http_proxy|https_proxy|proxy|all_proxy|no_proxy|cafile|ca)$/i;
@@ -487,51 +473,6 @@ describe("desktopRuntimeEnv buildHostProcessEnv", () => {
 
     expect(env.ZCODE_APP_VERSION).toBe("0.0.0-test");
     expect(env.ZCODE_BUILD_COMMIT_ID).toBe("commit-test");
-  });
-
-  it("只把 Agent OTLP 配置定向注入 host，并剔除外部身份字段", async () => {
-    const { buildHostProcessEnv } = await import("../src/main/desktopRuntimeEnv.js");
-
-    const env = buildHostProcessEnv({
-      OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: "https://arms.example.com/v1/traces",
-      OTEL_EXPORTER_OTLP_TRACES_HEADERS: "Authorization=secret",
-      ZCODE_TELEMETRY_USER_ID: "raw-oauth-user",
-      ZCODE_TELEMETRY_USER_SUBJECT_ID: "spoofed-user-subject",
-      ZCODE_TELEMETRY_IDENTITY_STATE: "authenticated",
-      ZCODE_TELEMETRY_DEVICE_MID: "spoofed-device",
-      ZCODE_TELEMETRY_RUNTIME_SURFACE: "standalone-cli",
-    });
-
-    expect(env).toMatchObject({
-      OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: "https://arms.example.com/v1/traces",
-      OTEL_EXPORTER_OTLP_TRACES_HEADERS: "Authorization=secret",
-    });
-    expect(env.ZCODE_TELEMETRY_USER_ID).toBeUndefined();
-    expect(env.ZCODE_TELEMETRY_USER_SUBJECT_ID).toBeUndefined();
-    expect(env.ZCODE_TELEMETRY_IDENTITY_STATE).toBeUndefined();
-    expect(env.ZCODE_TELEMETRY_DEVICE_MID).toBeUndefined();
-    expect(env.ZCODE_TELEMETRY_RUNTIME_SURFACE).toBeUndefined();
-    expect(env.ZCODE_TOOL_ENV_PASSTHROUGH_JSON).toBeUndefined();
-  });
-
-  it("正式安装包默认配置只接收 OTLP 连接字段，不接受构建期身份字段", async () => {
-    const { resolvePackagedAgentTelemetryEnv } = await import("../src/main/desktopRuntimeEnv.js");
-
-    expect(
-      resolvePackagedAgentTelemetryEnv({
-        OTEL_EXPORTER_OTLP_ENDPOINT: "https://arms.example.com/otlp",
-        OTEL_EXPORTER_OTLP_HEADERS: "x-arms-license-key=write-only",
-        OTEL_SERVICE_NAME: "zcode-cli-agent",
-        ZCODE_TELEMETRY_RUNTIME_DISTRIBUTION: "packaged",
-        ZCODE_TELEMETRY_USER_SUBJECT_ID: "spoofed-user",
-        ZCODE_TELEMETRY_DEVICE_MID: "spoofed-device",
-      }),
-    ).toEqual({
-      OTEL_EXPORTER_OTLP_ENDPOINT: "https://arms.example.com/otlp",
-      OTEL_EXPORTER_OTLP_HEADERS: "x-arms-license-key=write-only",
-      OTEL_SERVICE_NAME: "zcode-cli-agent",
-      ZCODE_TELEMETRY_RUNTIME_DISTRIBUTION: "packaged",
-    });
   });
 
   it("Windows 打包态会从 resourcesPath 推导安装目录供数据目录保护使用", async () => {

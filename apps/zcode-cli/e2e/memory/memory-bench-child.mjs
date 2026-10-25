@@ -59,7 +59,6 @@ try {
         ...process.env,
         ZCODE_ENV: "test",
         ZCODE_STORAGE_DIR: settings.storageRoot,
-        ZCODE_MODEL_TELEMETRY_ENABLED: "false",
       },
       skipUserConfig: true,
       loadDotenv: () => ({ keys: [], loaded: false }),

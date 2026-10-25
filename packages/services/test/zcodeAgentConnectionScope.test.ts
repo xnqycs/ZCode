@@ -1,7 +1,5 @@
 import type { PluginUiToolResultNotification } from "@zcode/shared/mcp-apps";
-import type { ZCodeMcpResourceSample } from "@zcode/shared";
 import { Emitter } from "@zcode/rpc";
-import type { ZCodeMcpTelemetryEvent, ZCodeProcessResourceSample } from "@zcode/shared";
 import type {
   ConversationTopicFrame,
   ConversationTopicWireFrame,
@@ -62,9 +60,6 @@ function setupBase() {
   const telemetryFacts = new Emitter<ConversationTelemetryFact>();
   const pluginUiResults = new Emitter<PluginUiToolResultNotification & { workspacePath: string }>();
   const cuaPermissionObservations = new Emitter<ZCodeAgentCuaPermissionObservation>();
-  const processResourceSamples = new Emitter<ZCodeProcessResourceSample>();
-  const mcpResourceSamples = new Emitter<ZCodeMcpResourceSample[]>();
-  const mcpTelemetryEvents = new Emitter<ZCodeMcpTelemetryEvent>();
   const sessionsIndexFrames = new Emitter<SessionsIndexTopicWireFrame>();
   const workspaceConfigFrames = new Emitter<WorkspaceConfigTopicWireFrame>();
   const runtimeRestarts = new Emitter<{ workspaceKey: string }>();
@@ -98,9 +93,6 @@ function setupBase() {
     onDynamicConversationTelemetryFact: vi.fn(() => telemetryFacts.event),
     onDynamicPluginUiToolResult: vi.fn(() => pluginUiResults.event),
     onDynamicCuaPermissionObservation: vi.fn(() => cuaPermissionObservations.event),
-    onDynamicProcessResourceSample: vi.fn(() => processResourceSamples.event),
-    onDynamicMcpResourceSamples: vi.fn(() => mcpResourceSamples.event),
-    onDynamicMcpTelemetry: vi.fn(() => mcpTelemetryEvents.event),
     subscribeSessionsIndexV4: vi.fn(async (params: unknown) => ({
       ack: {
         subscriptionId: nextId(params),
@@ -164,9 +156,6 @@ function setupBase() {
     telemetryFacts,
     cuaPermissionObservations,
     pluginUiResults,
-    processResourceSamples,
-    mcpResourceSamples,
-    mcpTelemetryEvents,
     sessionsIndexFrames,
     workspaceConfigFrames,
     runtimeRestarts,
@@ -439,132 +428,6 @@ describe("ZCodeAgent connection-scoped service facade", () => {
       connectionId: "mobile-rows",
       clientMode: "web-remote-replayable",
     });
-  });
-
-  it("只有 trusted Host relay 能跨连接订阅 CLI 进程资源样本", () => {
-    const { base, processResourceSamples } = setupBase();
-    const relay = createZCodeAgentConnectionScope(base, {
-      connectionId: "server-upstream",
-      clientMode: "desktop-continuous",
-      role: "trusted-host-relay",
-    });
-    const desktop = createZCodeAgentConnectionScope(relay.service, {
-      connectionId: "desktop-downstream",
-      clientMode: "desktop-continuous",
-    });
-    const mobile = createZCodeAgentConnectionScope(relay.service, {
-      connectionId: "mobile-downstream",
-      clientMode: "web-remote-replayable",
-    });
-    const relaySeen: ZCodeProcessResourceSample[] = [];
-    const desktopSeen: ZCodeProcessResourceSample[] = [];
-    const mobileSeen: ZCodeProcessResourceSample[] = [];
-
-    relay.service.onDynamicProcessResourceSample()((sample) => relaySeen.push(sample));
-    desktop.service.onDynamicProcessResourceSample()((sample) => desktopSeen.push(sample));
-    mobile.service.onDynamicProcessResourceSample()((sample) => mobileSeen.push(sample));
-    const sample: ZCodeProcessResourceSample = {
-      arch: "x64",
-      cpuCores: 1,
-      cpuPercent: 12.5,
-      intervalMs: 60_000,
-      logicalCpuCount: 8,
-      platform: "linux",
-      rssKb: 64_000,
-    };
-    processResourceSamples.fire(sample);
-
-    expect(relaySeen).toEqual([sample]);
-    expect(desktopSeen).toEqual([]);
-    expect(mobileSeen).toEqual([]);
-    expect(base.onDynamicProcessResourceSample).toHaveBeenCalledTimes(1);
-  });
-
-  it("只有 trusted Host relay 能订阅 MCP 遥测", () => {
-    const { base, mcpTelemetryEvents } = setupBase();
-    const relay = createZCodeAgentConnectionScope(base, {
-      connectionId: "server-upstream",
-      clientMode: "desktop-continuous",
-      role: "trusted-host-relay",
-    });
-    const desktop = createZCodeAgentConnectionScope(relay.service, {
-      connectionId: "desktop-downstream",
-      clientMode: "desktop-continuous",
-    });
-    const mobile = createZCodeAgentConnectionScope(relay.service, {
-      connectionId: "mobile-downstream",
-      clientMode: "web-remote-replayable",
-    });
-    const sample: ZCodeMcpTelemetryEvent = {
-      arch: "x64",
-      kind: "process_start",
-      mcpId: "builtin:node_repl",
-      mcpInstanceId: "mcp-instance-1",
-      mcpIsolation: "workspace",
-      mcpSource: "builtin",
-      occurredAt: 1,
-      platform: "linux",
-    };
-    const relaySeen: ZCodeMcpTelemetryEvent[] = [];
-    const desktopSeen: ZCodeMcpTelemetryEvent[] = [];
-    const mobileSeen: ZCodeMcpTelemetryEvent[] = [];
-
-    relay.service.onDynamicMcpTelemetry()((event) => relaySeen.push(event));
-    desktop.service.onDynamicMcpTelemetry()((event) => desktopSeen.push(event));
-    mobile.service.onDynamicMcpTelemetry()((event) => mobileSeen.push(event));
-    mcpTelemetryEvents.fire(sample);
-
-    expect(relaySeen).toEqual([sample]);
-    expect(desktopSeen).toEqual([]);
-    expect(mobileSeen).toEqual([]);
-    expect(base.onDynamicMcpTelemetry).toHaveBeenCalledTimes(1);
-  });
-
-  it("只有 trusted Host relay 能订阅 MCP 资源数组", () => {
-    const { base, mcpResourceSamples } = setupBase();
-    const relay = createZCodeAgentConnectionScope(base, {
-      connectionId: "server-upstream",
-      clientMode: "desktop-continuous",
-      role: "trusted-host-relay",
-    });
-    const desktop = createZCodeAgentConnectionScope(relay.service, {
-      connectionId: "desktop-downstream",
-      clientMode: "desktop-continuous",
-    });
-    const mobile = createZCodeAgentConnectionScope(relay.service, {
-      connectionId: "mobile-downstream",
-      clientMode: "web-remote-replayable",
-    });
-    const sample: ZCodeMcpResourceSample[] = [
-      {
-        mcpId: "builtin:node_repl",
-        instanceToken: "cli-instance-01",
-        sampledAt: 300000,
-        intervalMs: 300000,
-        processCount: 1,
-        rssKbTotal: 100,
-        rssKbMaxProcess: 100,
-        cpuTimeMsDelta: 0,
-        uptimeMinutes: 5,
-        platform: "linux",
-        arch: "x64",
-        logicalCpuCount: 8,
-        totalMemoryGb: 32,
-      },
-    ];
-    const relaySeen: ZCodeMcpResourceSample[][] = [];
-    const desktopSeen: ZCodeMcpResourceSample[][] = [];
-    const mobileSeen: ZCodeMcpResourceSample[][] = [];
-
-    relay.service.onDynamicMcpResourceSamples()((event) => relaySeen.push(event));
-    desktop.service.onDynamicMcpResourceSamples()((event) => desktopSeen.push(event));
-    mobile.service.onDynamicMcpResourceSamples()((event) => mobileSeen.push(event));
-    mcpResourceSamples.fire(sample);
-
-    expect(relaySeen).toEqual([sample]);
-    expect(desktopSeen).toEqual([]);
-    expect(mobileSeen).toEqual([]);
-    expect(base.onDynamicMcpResourceSamples).toHaveBeenCalledTimes(1);
   });
 
   it("只有可信 desktop-continuous attachment 能订阅 workspace telemetry fact", async () => {

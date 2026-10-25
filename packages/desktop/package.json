@@ -94,6 +94,7 @@
   "devDependencies": {
     "@electron/asar": "^3.4.1",
     "@electron/rebuild": "^4.0.3",
+    "@opentelemetry/otlp-transformer": "0.214.0",
     "@tailwindcss/vite": "^4.2.2",
     "@types/mocha": "^10.0.10",
     "@types/react": "^19.2.14",

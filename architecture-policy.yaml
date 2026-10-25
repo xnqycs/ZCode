@@ -905,3 +905,12 @@ exceptions:
     paths:
       - packages/desktop/src/main/databaseStartupRelay.ts
     reason: Existing database startup relay only removes the /event/report hook; module ownership and boundary are unchanged, adopting the desktop main directory is out of scope.
+  - id: cli-agent-telemetry-removal
+    rule: unmanaged-new-file
+    paths:
+      - apps/zcode-cli/packages/adapters/src/mcp/process-tracker.ts
+      - apps/zcode-cli/packages/contracts/src/model-attribution/index.ts
+      - apps/zcode-cli/packages/bootstrap/src/zcode-protocol/runtime-cleanup.ts
+      - apps/zcode-cli/packages/cli/src/tui-prompt-handler-runtime.ts
+      - packages/shared/src/processResource.ts
+    reason: Telemetry removal moves the model attribution contract and keeps only local MCP process/resource data; module ownership and boundaries are unchanged, adopting the full CLI and shared directories is out of scope.

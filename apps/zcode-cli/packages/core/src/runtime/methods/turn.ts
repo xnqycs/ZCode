@@ -228,12 +228,6 @@ export async function executeTurnCommand(
       status: "completed",
     });
   };
-  const turnTelemetry = this.agentTelemetry.turn({
-    inputSource: options?.inputSource,
-    traceContext: turnTraceContext,
-    turnNumber: this.turnNumber,
-  });
-
   const execute = () =>
     runWithContextAsync(turnTraceContext, async () => {
       const executionStartedAt = performance.timeOrigin + performance.now();
@@ -1069,33 +1063,22 @@ export async function executeTurnCommand(
         });
         throw coreError;
       }
-    }).then(
-      (result) => {
-        turnTelemetry.finishCompleted("assistant_message");
-        return result;
-      },
-      (error: unknown) => {
-        if (!turnFailureHandled) {
-          this.logger?.warn("Turn execution escaped lifecycle handler", {
-            ...traceContextToLogContext(turnTraceContext),
-            durationMs: Date.now() - turnStartedAtMs,
-            errorMessage: error instanceof Error ? error.message : String(error),
-            event: "turn.lifecycle.unhandled_rejection",
-            module: "core.runtime",
-            phase: turnPhase,
-            status: "failed",
-          });
-        }
-        if (isTurnCancellationError(error, turnAbortSignal)) {
-          turnTelemetry.finishCancelled("abort_signal");
-        } else {
-          turnTelemetry.finishFailed("unhandled", "unknown", error);
-        }
-        throw error;
-      },
-    );
+    }).catch((error: unknown) => {
+      if (!turnFailureHandled) {
+        this.logger?.warn("Turn execution escaped lifecycle handler", {
+          ...traceContextToLogContext(turnTraceContext),
+          durationMs: Date.now() - turnStartedAtMs,
+          errorMessage: error instanceof Error ? error.message : String(error),
+          event: "turn.lifecycle.unhandled_rejection",
+          module: "core.runtime",
+          phase: turnPhase,
+          status: "failed",
+        });
+      }
+      throw error;
+    });
 
-  return turnTelemetry.run(execute).finally(async () => {
+  return execute().finally(async () => {
     disposeProjectMemoryRecallPrefetch(this);
     if (targetRunHeartbeat) {
       clearInterval(targetRunHeartbeat);

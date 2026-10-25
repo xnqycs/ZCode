@@ -52,7 +52,7 @@ export * from "./model/image-media.js";
 export * from "./model/media-policy.js";
 
 // Telemetry
-export * from "./telemetry/index.js";
+export * from "./model-attribution/index.js";
 
 // Errors
 export * from "./errors/index.js";

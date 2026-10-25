@@ -263,12 +263,6 @@ export async function autoCompactIfNeeded(
       events,
       {
         abortSignal,
-        compactContextTelemetry: {
-          inputTokens: decision.tokenCount,
-          policyContextWindowTokens: decision.contextWindow,
-          thresholdTokens: decision.threshold,
-          tokenSource: decision.tokenSource,
-        },
         autoCompactThreshold: decision.threshold,
         compactReason: context.compactReason,
         phase: context.phase,
@@ -418,14 +412,6 @@ export async function reactiveCompactAfterContextExceeded(
       events,
       {
         abortSignal,
-        compactContextTelemetry: {
-          inputTokens: tokenOverride?.tokenCount ?? estimateMessageTokens(activeMessages),
-          policyContextWindowTokens:
-            contextWindow !== undefined && Number.isFinite(contextWindow) && contextWindow > 0
-              ? Math.floor(contextWindow)
-              : DEFAULT_COMPACT_CONTEXT_WINDOW,
-          tokenSource: tokenOverride?.source ?? "estimate",
-        },
         compactReason: CompactReason.ProviderOverflow,
         initialPromptTooLongCause: originalError,
         phase: CompactPhase.Reactive,

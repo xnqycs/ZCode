@@ -6,7 +6,6 @@ import type {
 } from "@zcode/contracts";
 import { describe, expect, it, vi } from "vitest";
 import { createMcpConnectionPool } from "../src/mcp/pool.js";
-import { createMcpTelemetryTracker } from "../src/mcp/telemetry.js";
 
 describe("MCP connection pool isolation", () => {
   it("shares startup waiters and rejects a released lease while another owner connects", async () => {
@@ -40,115 +39,6 @@ describe("MCP connection pool isolation", () => {
     expect(await opening).toEqual(source);
     expect(connectServer).toHaveBeenCalledOnce();
     await b.close();
-    await pool.close();
-  });
-
-  it("reports one startup count snapshot for a session lease", async () => {
-    const events: unknown[] = [];
-    const telemetry = createMcpTelemetryTracker({
-      idSalt: "device-a",
-      onEvent: (event) => events.push(event),
-    });
-    const pool = createMcpConnectionPool({
-      createAdapter: ({ config, serverName }) =>
-        createFakeAdapterWithStatus(
-          serverName,
-          config.type,
-          serverName === "pending" ? "connecting" : "connected",
-        ),
-      idleGraceMs: 0,
-      telemetry,
-    });
-    const session = pool.acquireLease({ leaseId: "session-a", sessionId: "session-a" });
-
-    await session.connectConfiguredServers({
-      local: { command: "node", type: "stdio" },
-      remote: { type: "http", url: "https://mcp.example.test" },
-      pending: { command: "node", type: "stdio" },
-    });
-    await session.status();
-
-    expect(events).toContainEqual(
-      expect.objectContaining({
-        configuredCount: 3,
-        connectedCount: 2,
-        failedCount: 1,
-        kind: "session_startup",
-        processCount: 1,
-        sessionId: "session-a",
-      }),
-    );
-    expect(
-      events.filter((event) => (event as { kind?: string }).kind === "session_startup"),
-    ).toHaveLength(1);
-
-    await session.close();
-    await pool.close();
-  });
-
-  it("reports a built-in plugin MCP process with the built-in telemetry source", async () => {
-    let connectionId: string | undefined;
-    const events: Array<{ kind: string; mcpId?: string; mcpSource?: string }> = [];
-    const telemetry = createMcpTelemetryTracker({
-      idSalt: "device-a",
-      onEvent: (event) => events.push(event),
-      randomId: () => "mcp-instance-1",
-    });
-    const pool = createMcpConnectionPool({
-      createAdapter: ({ connectionContext, serverName }) => {
-        connectionId = connectionContext.mcpConnectionId;
-        return createFakeAdapter(serverName);
-      },
-      idleGraceMs: 0,
-      telemetry,
-    });
-    const session = pool.acquireLease({ leaseId: "session-a", sessionId: "session-a" });
-
-    await session.connectServer("plugin:browser-use:browser", {
-      command: "node",
-      source: { kind: "builtin" },
-      type: "stdio",
-    });
-    telemetry.recordProcessStarted({ connectionId: connectionId!, pid: 10_001 });
-
-    expect(events).toContainEqual(
-      expect.objectContaining({
-        kind: "process_start",
-        mcpId: "builtin:browser-use:browser",
-        mcpSource: "builtin",
-      }),
-    );
-
-    await session.close();
-    await pool.close();
-  });
-
-  it("reports a zero startup snapshot for a session without configured MCP servers", async () => {
-    const events: unknown[] = [];
-    const telemetry = createMcpTelemetryTracker({
-      idSalt: "device-a",
-      onEvent: (event) => events.push(event),
-    });
-    const pool = createMcpConnectionPool({
-      createAdapter: ({ serverName }) => createFakeAdapter(serverName),
-      idleGraceMs: 0,
-      telemetry,
-    });
-    const session = pool.acquireLease({ leaseId: "session-a", sessionId: "session-a" });
-
-    await session.status();
-
-    expect(events).toEqual([
-      expect.objectContaining({
-        configuredCount: 0,
-        connectedCount: 0,
-        failedCount: 0,
-        kind: "session_startup",
-        processCount: 0,
-        sessionId: "session-a",
-      }),
-    ]);
-    await session.close();
     await pool.close();
   });
 
@@ -190,65 +80,6 @@ describe("MCP connection pool isolation", () => {
     await sessionB.close();
     await Promise.resolve();
     expect(created[0]?.adapter.close).toHaveBeenCalledOnce();
-    await pool.close();
-  });
-
-  it("keeps telemetry registration when a crashed workspace entry is reacquired during idle grace", async () => {
-    let instanceSequence = 0;
-    let connectionId: string | undefined;
-    const events: Array<{ kind: string; mcpInstanceId?: string }> = [];
-    const telemetry = createMcpTelemetryTracker({
-      idSalt: "device-a",
-      onEvent: (event) => events.push(event),
-      randomId: () => `mcp-instance-${++instanceSequence}`,
-    });
-    const createAdapter = vi.fn(
-      ({
-        connectionContext,
-        serverName,
-      }: Parameters<Parameters<typeof createMcpConnectionPool>[0]["createAdapter"]>[0]) => {
-        connectionId = connectionContext.mcpConnectionId;
-        return createFakeAdapter(serverName);
-      },
-    );
-    const pool = createMcpConnectionPool({
-      createAdapter,
-      idleGraceMs: 60_000,
-      telemetry,
-    });
-    const config: McpServerConfig = {
-      command: "node",
-      isolation: "workspace",
-      type: "stdio",
-    };
-    const connectOptions = {
-      workingDirectory: "/workspace",
-      workspaceIdentity: "local-workspace-a",
-    };
-    const sessionA = pool.acquireLease({ leaseId: "session-a", sessionId: "session-a" });
-
-    await sessionA.connectServer("browser_use", config, connectOptions);
-    expect(connectionId).toEqual(expect.any(String));
-    telemetry.recordProcessStarted({ connectionId: connectionId!, pid: 10_001 });
-    telemetry.recordProcessCrashed({ connectionId: connectionId!, exitCode: 23, signal: null });
-    await sessionA.close();
-
-    const sessionB = pool.acquireLease({ leaseId: "session-b", sessionId: "session-b" });
-    await sessionB.connectServer("browser_use", config, connectOptions);
-    const restarted = telemetry.recordProcessStarted({ connectionId: connectionId!, pid: 10_002 });
-
-    expect(createAdapter).toHaveBeenCalledOnce();
-    expect(restarted).toEqual({
-      mcpId: expect.stringMatching(/^custom:[a-f0-9]{12}$/),
-      mcpInstanceId: "mcp-instance-2",
-    });
-    expect(events.map((event) => [event.kind, event.mcpInstanceId])).toEqual([
-      ["process_start", "mcp-instance-1"],
-      ["process_crash", "mcp-instance-1"],
-      ["process_start", "mcp-instance-2"],
-    ]);
-
-    await sessionB.close();
     await pool.close();
   });
 

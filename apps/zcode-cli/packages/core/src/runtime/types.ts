@@ -6,8 +6,6 @@ import type { RuntimeInputPresentation, TurnExecutionModelFallbackReason } from 
 import { PermissionService, ToolScheduler } from "./deps.js";
 import type {
   JsonSchema,
-  AgentExecutionTelemetryPort,
-  AgentTelemetryCausation,
   BackgroundResultOriginMeta,
   ContextUsageBreakdownItem,
   CoordinatorResponsePort,
@@ -328,9 +326,6 @@ export interface AgentRuntimeDeps {
   getAgentDefinitions?: GetAgentDefinitions;
   /** 新父上下文读取一次；子执行不得继承此加载器。 */
   loadAgentDefinitions?: LoadAgentDefinitions;
-  agentTelemetry?: AgentExecutionTelemetryPort;
-  agentTelemetryCausation?: AgentTelemetryCausation;
-  agentTelemetryCausationMode?: "child" | "linked_root";
   appVersion?: string;
   eventStore: SessionEventStorePort;
   sessionStore?: SessionStorePort;

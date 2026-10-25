@@ -109,7 +109,6 @@ vi.mock("@modelcontextprotocol/client/stdio", () => ({
 }));
 
 import { createMcpAdapter } from "../src/mcp/index.js";
-import { createMcpTelemetryTracker } from "../src/mcp/telemetry.js";
 
 /**
  * 把 Phase 1 建连做成认证失败，并接管 Phase 2 的 `auth()`：调用 provider 的
@@ -625,22 +624,6 @@ describe("createMcpAdapter", () => {
       warn: warnMock,
     };
     logger.child.mockReturnValue(logger);
-    const telemetryEvents: Array<{ kind: string; mcpInstanceId?: string }> = [];
-    const telemetry = createMcpTelemetryTracker({
-      idSalt: "device-a",
-      onEvent: (event) => telemetryEvents.push(event),
-      randomId: () => "mcp-instance-1",
-    });
-    telemetry.registerConnection({
-      connectionId: "connection-1",
-      isolation: "session",
-      serverName: "node_repl",
-    });
-    telemetry.acquireOwner({
-      connectionId: "connection-1",
-      ownerId: "lease-1",
-      sessionId: "session-1",
-    });
     const adapter = createMcpAdapter({
       connectionContext: {
         mcpConnectionId: "connection-1",
@@ -648,7 +631,6 @@ describe("createMcpAdapter", () => {
         sessionId: "session-1",
       },
       logger,
-      telemetry,
     });
 
     await adapter.connectServer("node_repl", {
@@ -673,10 +655,6 @@ describe("createMcpAdapter", () => {
     const statuses = await adapter.status();
     expect(statuses.node_repl?.status).toBe("disconnected");
     expect(statuses.node_repl?.failureKind).toBe("unexpected_disconnect");
-    expect(telemetryEvents.map((event) => [event.kind, event.mcpInstanceId])).toEqual([
-      ["process_start", "mcp-instance-1"],
-      ["process_crash", "mcp-instance-1"],
-    ]);
   });
 
   it("does not report connection_lost when the server is closed deliberately", async () => {

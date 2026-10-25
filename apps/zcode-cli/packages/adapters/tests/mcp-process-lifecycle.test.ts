@@ -4,7 +4,6 @@ import { tmpdir } from "node:os";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createMcpAdapter } from "../src/mcp/index.js";
 import { terminateMcpStdioProcessTree } from "../src/mcp/process-tree.js";
-import { createMcpTelemetryTracker } from "../src/mcp/telemetry.js";
 
 describe("MCP stdio process lifecycle", () => {
   const cleanupPids = new Set<number>();
@@ -314,72 +313,6 @@ describe("MCP stdio process lifecycle", () => {
 
       await waitForPidExit(serverPid);
       await waitForPidExit(childPid);
-      cleanupPids.delete(serverPid);
-      cleanupPids.delete(childPid);
-      await rm(fixture.root, { force: true, recursive: true });
-    },
-  );
-
-  it.runIf(process.platform !== "win32")(
-    "reports one start and crash for the final stdio process with its exit code",
-    async () => {
-      const fixture = await createMcpProcessFixture({ crashAfterConnectedMs: 100 });
-      const events: Array<{ exitCode?: number | null; kind: string; mcpInstanceId?: string }> = [];
-      const telemetry = createMcpTelemetryTracker({
-        idSalt: "device-a",
-        onEvent: (event) => events.push(event),
-        randomId: () => "mcp-instance-1",
-      });
-      telemetry.registerConnection({
-        connectionId: "connection-1",
-        isolation: "session",
-        serverName: "crashing-server",
-      });
-      telemetry.acquireOwner({
-        connectionId: "connection-1",
-        ownerId: "lease-1",
-        sessionId: "session-1",
-      });
-      const adapter = createMcpAdapter({
-        connectionContext: {
-          mcpConnectionId: "connection-1",
-          mcpIsolation: "session",
-          sessionId: "session-1",
-        },
-        telemetry,
-      });
-
-      await expect(
-        adapter.connectServer("crashing-server", {
-          args: [fixture.serverPath],
-          command: process.execPath,
-          env: fixture.env,
-          timeoutMs: 5_000,
-          type: "stdio",
-        }),
-      ).resolves.toMatchObject({ status: "connected" });
-      const serverPid = await readPidFile(fixture.serverPidFile);
-      const childPid = await readPidFile(fixture.childPidFile);
-      cleanupPids.add(serverPid);
-      cleanupPids.add(childPid);
-
-      await waitFor(() =>
-        events.some((event) => event.kind === "process_crash") ? true : undefined,
-      );
-
-      expect(events).toEqual([
-        expect.objectContaining({
-          kind: "process_start",
-          mcpInstanceId: "mcp-instance-1",
-        }),
-        expect.objectContaining({
-          exitCode: 23,
-          kind: "process_crash",
-          mcpInstanceId: "mcp-instance-1",
-        }),
-      ]);
-      await adapter.close();
-      forceKillPid(childPid);
       cleanupPids.delete(serverPid);
       cleanupPids.delete(childPid);
       await rm(fixture.root, { force: true, recursive: true });

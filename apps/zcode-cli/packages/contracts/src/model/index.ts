@@ -15,7 +15,7 @@ import type {
   ModelApiCallObservation,
   ModelApiErrorPhase,
   ResolvedModelApiCallObservation,
-} from "../telemetry/index.js";
+} from "../model-attribution/index.js";
 
 export * from "./image-media.js";
 export * from "./model.js";

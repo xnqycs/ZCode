@@ -48,7 +48,7 @@ import type {
 import { createModelUsageSummary } from "../model/index.js";
 import type { CheckpointCreatedPayload, RewindTriggeredPayload } from "../rewind/index.js";
 import type { SkillTelemetryMetadata } from "../skills/index.js";
-import type { ModelApiErrorPhase, ModelFailureExceptionKind } from "../telemetry/index.js";
+import type { ModelApiErrorPhase, ModelFailureExceptionKind } from "../model-attribution/index.js";
 import type { ToolSideEffectScope } from "../tools/contract.js";
 import type { SavedWorkflowScope } from "../tools/saved-workflow.js";
 import type { GoalCompletionVerificationOutput, SessionGoal } from "../tools/target.js";

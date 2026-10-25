@@ -14,7 +14,6 @@ describe("shared runtime env", () => {
     const env = await importFreshEnvModule();
 
     // 单测不注入 ARMS 与自动更新。
-    expect(env.ZCODE_ARMS_RUM_ENDPOINT).toBe("");
     expect(env.ZCODE_AUTO_UPDATE_ENABLED).toBe(false);
   });
 
@@ -25,7 +24,6 @@ describe("shared runtime env", () => {
 
     expect(env.ZCODE_ENV).toBe("test");
     expect(env.normalizeZCodeEnv("development")).toBe("test");
-    expect(env.mapZCodeEnvToArmsRumEnv("production")).toBe("local");
   });
 
   it("未注入身份 define 时 flavor 跟随 ZCODE_ENV", async () => {
@@ -47,21 +45,5 @@ describe("shared runtime env", () => {
 
     expect(env.ZCODE_ENV).toBe("production");
     expect(env.ZCODE_PRODUCT_FLAVOR).toBe("preview");
-  });
-
-  it("mapZCodeEnvToArmsRumEnv 将非本地 production 映射为 prod", async () => {
-    vi.stubGlobal("__ZCODE_ENV__", "production");
-
-    const env = await importFreshEnvModule();
-
-    expect(env.mapZCodeEnvToArmsRumEnv("production")).toBe("prod");
-  });
-
-  it("mapZCodeEnvToArmsRumEnv 在本地开发态忽略 production 产品环境并映射为 local", async () => {
-    vi.stubGlobal("__ZCODE_ENV__", "production");
-
-    const env = await importFreshEnvModule();
-
-    expect(env.mapZCodeEnvToArmsRumEnv("development")).toBe("local");
   });
 });

@@ -806,7 +806,7 @@ export class ZCodeProtocolAgentServer {
       case zcodeProtocolMethods.pluginsOverview:
         return await getPluginsOverview(this.context, request.params);
       case zcodeProtocolMethods.processChildProcesses:
-        return listChildProcesses(this.context.deps.mcpTelemetry?.listProcesses() ?? []);
+        return listChildProcesses(this.context.deps.mcpProcesses?.listProcesses() ?? []);
       case zcodeProtocolMethods.runtimeCapabilities:
         return { independentPlanState: true, historyFirst: true };
       case zcodeProtocolMethods.pluginsMarketplaceAdd:
@@ -985,7 +985,7 @@ export class ZCodeProtocolAgentServer {
               PROTOCOL_CLIENT_REQUEST_ERROR_CODES.timedOut,
               `Client request timed out: ${method}`,
               {
-              timeoutMs: options.timeoutMs,
+                timeoutMs: options.timeoutMs,
               },
             ),
           );

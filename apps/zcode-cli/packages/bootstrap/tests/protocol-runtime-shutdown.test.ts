@@ -7,12 +7,6 @@ import type { Logger } from "@zcode/contracts";
 import { createInMemorySessionEventStore } from "@zcode/adapters/storage";
 import { ZCodeProtocolAgentServer } from "../src/zcode-protocol/server.js";
 
-const telemetry = vi.hoisted(() => ({ shutdown: vi.fn(async () => {}) }));
-vi.mock("@zcode/telemetry", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("@zcode/telemetry")>()),
-  shutdownPreparedModelTelemetry: telemetry.shutdown,
-}));
-
 afterEach(() => {
   vi.useRealTimers();
   vi.clearAllMocks();
@@ -182,7 +176,6 @@ describe("protocol runtime resource ownership", () => {
     await vi.advanceTimersByTimeAsync(451);
     expect(completed).toBe(true);
     expect(order).toEqual(["apps", "projections", "mcp", "pool", "registry"]);
-    expect(telemetry.shutdown).toHaveBeenCalledOnce();
     await cleanup;
   });
 });

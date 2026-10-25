@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { resolveModelApiCallObservation } from "../src/telemetry/index.js";
+import { resolveModelApiCallObservation } from "../src/model-attribution/index.js";
 
 describe("model API operation registry", () => {
   it.each([

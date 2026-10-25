@@ -1,4 +1,4 @@
-import { beginLocalTurnPreparation } from "@zcode/contracts";
+import { ModelApiActorKind, beginLocalTurnPreparation } from "@zcode/contracts";
 import { runWithModelInvocationContext, traceContextToLogContext } from "../deps.js";
 import type { ModelReasoningContentBlock, ModelToolCall, ModelUsage, ToolCallId } from "../deps.js";
 import {
@@ -84,7 +84,7 @@ export async function runModelTextRequest(
       // 普通 Agent Step 以前只靠 metadata.querySource 在 Adapter 中反推
       // operation/actor；元数据一旦改名或缺失，就会误记为 tool_internal_model_call。
       // Runtime 已经拥有原始执行语义，应在请求边界直接声明，旧映射只作兼容兜底。
-      actorKind: this.agentTelemetry.actorKind,
+      actorKind: modelActorKindForTaskType(this.config.taskType),
       operation: "agent_step" as const,
       operationId: projectedOptions.traceContext.spanId,
       ...(projectedOptions.streamRecovery
@@ -517,4 +517,14 @@ export async function runModelTextRequest(
     toolCalls: toolCalls.length > 0 ? toolCalls : undefined,
     usage,
   };
+}
+
+function modelActorKindForTaskType(
+  taskType: string | undefined,
+): (typeof ModelApiActorKind)[keyof typeof ModelApiActorKind] {
+  if (taskType === "subagent_child") return ModelApiActorKind.Subagent;
+  if (taskType === "workflow_child" || taskType === "nested_workflow_child") {
+    return ModelApiActorKind.WorkflowChild;
+  }
+  return ModelApiActorKind.MainAgent;
 }
