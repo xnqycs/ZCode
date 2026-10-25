@@ -2,6 +2,7 @@ import { mkdir, readFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { build } from "esbuild";
+import { createVendorEmbedPlugin, loadVendorEmbedTransform } from "./vendor-embed.mjs";
 
 const packageRoot = resolve(import.meta.dirname, "..");
 
@@ -43,6 +44,12 @@ export const buildNodeReplHostBundle = async ({
   cuaHelperBuildId = resolveCuaHelperBuildId(),
 } = {}) => {
   await mkdir(dirname(outfile), { recursive: true });
+  // 叠加 ZcodePro 时 vendor/dist-index.js 是官方 node-repl-host server bundle 的提取物，
+  // 带着自己的 createRequire banner 和两段顶层入口守卫。插件只在那一个绝对路径的 onLoad
+  // 阶段做内存变换，把宿主外壳剥掉；未叠加时返回 undefined，构建配置与产物完全不变。
+  const vendorEmbed = loadVendorEmbedTransform(
+    resolve(packageRoot, "../../../..", "packages", "zcode-cua"),
+  );
   await build({
     banner: { js: nodeRequireBanner },
     bundle: true,
@@ -56,6 +63,9 @@ export const buildNodeReplHostBundle = async ({
     platform: "node",
     target: "node24",
     external: ["sharp"],
+    ...(vendorEmbed
+      ? { plugins: [createVendorEmbedPlugin({ ...vendorEmbed, outfile })] }
+      : {}),
   });
   // 构建期守卫：define 名一旦漂移（改名、被 createSharedDefines 之类重构吞掉），
   // 产物会静默退回空串，而症状只在正式包出现且表现为超时。这里立刻失败，别再让它溜到用户手上。
