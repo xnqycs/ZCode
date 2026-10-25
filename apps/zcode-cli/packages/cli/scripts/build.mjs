@@ -5,6 +5,10 @@ import { build } from "esbuild";
 import sharedPackage from "../../../../../packages/shared/package.json" with { type: "json" };
 import { stageBuiltinProviderConfig } from "../../../../../scripts/builtin-provider-config.mjs";
 import { stageThirdPartyNotices } from "../../../../../scripts/third-party-notices.mjs";
+import {
+  createAgentCuaContractPlugin,
+  loadAgentCuaContractOverrides,
+} from "./agent-cua-contracts.mjs";
 
 const cliRoot = resolve(import.meta.dirname, "..");
 const projectRoot = resolve(cliRoot, "../..");
@@ -164,6 +168,12 @@ export const buildCli = async ({
   const cliVersion = await version;
   const outfile = resolve(cliDirectory, "dist/zcode.cjs");
   const sourcemapFile = `${outfile}.map`;
+  // 未叠加 ZcodePro 时返回 undefined，plugins 与改动前完全一致。
+  // 叠加后 vendor/dist-index.js 含 top-level await，CJS 无法打包；只覆盖 agent 图用到的
+  // 两个契约子路径，并在 onEnd 断言 vendor 没有混进产物。
+  const cuaContractOverrides = await loadAgentCuaContractOverrides(
+    resolve(rootDirectory, "../../packages/zcode-cua"),
+  );
 
   await stageBuiltinProviderConfig({
     root: resolve(rootDirectory, "../.."),
@@ -197,7 +207,10 @@ export const buildCli = async ({
     logLevel: "info",
     minify,
     metafile: true,
-    plugins: [createZodDedupePlugin({ expectedV4Version: await readZodBuildVersion() })],
+    plugins: [
+      createZodDedupePlugin({ expectedV4Version: await readZodBuildVersion() }),
+      ...(cuaContractOverrides ? [createAgentCuaContractPlugin(cuaContractOverrides)] : []),
+    ],
     outfile,
     platform: "node",
     sourcemap,
