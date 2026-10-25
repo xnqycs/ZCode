@@ -6,6 +6,8 @@ export interface ClientConfigSnapshot {
   pluginStoreOrder: PluginStoreOrder | null;
   zsrcUrl: string | null;
   uiPluginRecommendations: { pluginId: string; surfaceId: string }[];
+  /** Dynamic Workflow 灰度原始 offer；解析与用户选择应用由 Host runtime config 负责。 */
+  dynamicWorkflow?: unknown;
 }
 
 const uiPluginRecommendationsSchema = z.array(
@@ -37,6 +39,7 @@ const envelopeSchema = z.object({
           pluginStoreOrder: z.unknown().optional(),
           zsrc: z.unknown().optional(),
           uiPluginRecommendations: z.unknown().optional(),
+          dynamicWorkflow: z.unknown().optional(),
         })
         .nullish(),
     })
@@ -52,5 +55,8 @@ export function parseClientConfigSnapshot(payload: unknown): ClientConfigSnapsho
     uiPluginRecommendations:
       uiPluginRecommendationsSchema.safeParse(configs?.uiPluginRecommendations).data ?? [],
     zsrcUrl: zsrcSchema.safeParse(configs?.zsrc).data?.url ?? null,
+    ...(configs?.dynamicWorkflow === undefined
+      ? {}
+      : { dynamicWorkflow: configs.dynamicWorkflow }),
   };
 }
