@@ -13,7 +13,7 @@ import { parseRemoteWorkspaceServicePortMessage } from "../src/renderer/src/remo
 // 模拟 ipcRenderer 的 on / removeListener
 const listeners = new Map<string, Set<(...args: unknown[]) => void>>();
 
-/** installArmsRumBridgeIpcForward 会替换 ipcRenderer.send，断言须用此引用 */
+/** 独立持有 send 引用，断言直接比较该 mock 的调用记录 */
 const mockIpcSend = vi.fn();
 const mockIpcRenderer = {
   on: vi.fn((channel: string, handler: (...args: unknown[]) => void) => {
