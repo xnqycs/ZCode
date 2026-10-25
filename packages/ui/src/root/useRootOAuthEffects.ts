@@ -15,7 +15,6 @@ import { useAlertDialog } from "@/hooks/useAlertDialog.js";
 import { useZCodeIntl } from "@/i18n/IntlProvider.js";
 import { logger } from "@/logger.js";
 import { setProviderFamilyDomain } from "@/lib/providerFamilyDomainSettings.js";
-import type { ModelProviderFamilyConnectionSelection } from "@/lib/modelProviderFamilyConnectionSelection.js";
 import {
   refreshLatestModelProviderFamilySelectionAfterLogin,
   refreshRestoredOAuthProviderFamilyAfterStartup,
@@ -25,7 +24,6 @@ import {
   requestOAuthReauthentication,
 } from "@/root/oauthCachedSessionRestore.js";
 import { shouldApplyOAuthPollingFailure } from "@/root/oauthLoginAttemptGuard.js";
-import { useAccountConnectionLossNotification } from "@/root/useAccountConnectionLossNotification.js";
 
 export { refreshRestoredOAuthProviderFamilyAfterStartup } from "@/root/oauthProviderFamilySelectionRefresh.js";
 
@@ -33,7 +31,7 @@ export async function handleOAuthCallbackSuccess(params: {
   result: OAuthSessionCallbackResult;
   refreshLatestModelProviderFamilySelection?: (
     provider: OAuthProviderId,
-  ) => Promise<ModelProviderFamilyConnectionSelection | null>;
+  ) => Promise<unknown>;
   refreshAppSettings?: () => Promise<void>;
   refreshProviderState: () => Promise<void>;
   setProviderFamilyDomain: (provider: OAuthProviderId) => Promise<void>;
@@ -55,7 +53,7 @@ export async function handleOAuthCallbackSuccess(params: {
     });
   }
   if (params.refreshLatestModelProviderFamilySelection || !connectionInitialized) {
-    let selection: ModelProviderFamilyConnectionSelection | null = null;
+    let selection: unknown = null;
     try {
       // 原因：初始化冲突已撤销本次自动写入资格，不能重读新版本再次覆盖用户选择。
       if (connectionInitialized && params.refreshLatestModelProviderFamilySelection)
@@ -115,7 +113,6 @@ export function useRootOAuthEffects({
   markOAuthSuccess: (provider?: OAuthProviderId) => void;
   onReauthenticationRequired: () => void;
 }) {
-  useAccountConnectionLossNotification(services, accountIntentKey, refreshAppSettings);
   const requestAlert = useAlertDialog();
   const { intl } = useZCodeIntl();
   const oauthLoginSucceededRef = useRef(false);
