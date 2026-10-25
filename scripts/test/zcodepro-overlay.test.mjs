@@ -37,6 +37,17 @@ const FRAME_CONTRACT_SOURCE_LF = [
   "",
   "export { OFFICIAL_CUA_FRAME_INTEGRITY_META_KEY };",
   'export const OFFICIAL_CUA_FRAME_MODEL_CONTENT_PROTECTION = "official_cua_frame_v1";',
+  "function isRecord(value) {",
+  '  return typeof value === "object" && value !== null;',
+  "}",
+  "function isImageBlock(block) {",
+  "  return (",
+  '    isRecord(block) &&',
+  '    block.type === "image" &&',
+  '    typeof block.data === "string" &&',
+  "    block.data.length > 0",
+  "  );",
+  "}",
   "",
 ].join("\n");
 const REQUEST_ACCESS_CONTRACT_SOURCE_LF = [
