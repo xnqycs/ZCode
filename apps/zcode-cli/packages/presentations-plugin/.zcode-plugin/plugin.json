@@ -20,8 +20,7 @@
       "cwd": "${ZCODE_PROJECT_DIR}",
       "env": {
         "ZCODE_WORKSPACE_ROOT": "${ZCODE_PROJECT_DIR}"
-      },
-      "isolation": "workspace"
+      }
     }
   },
   "ui": {
