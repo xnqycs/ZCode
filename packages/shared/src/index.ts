@@ -127,7 +127,6 @@ export * from "./storage.js";
 export * from "./oauth.js";
 export * from "./desktopMenu.js";
 export * from "./feedback.js";
-export * from "./e2e-test-bridge.js";
 export * from "./remoteAppConfig.js";
 export * from "./helpAppConfig.js";
 export * from "./remoteAssetInstallMode.js";
@@ -180,6 +179,7 @@ export type {
   CuaOsSupport,
   DesktopWindowChromeState,
   DesktopTitleBarTheme,
+  DesktopZoomState,
   DockerContainerInfo,
   EditorInfo,
   ApplicationIconInfo,
@@ -210,6 +210,7 @@ export type {
   UpdateCheckResultPayload,
   UpdateStatePayload,
   WSLDistro,
+  WindowControlsOverlayMetrics,
   WindowControlsOverlayReadyPayload,
   ZCodeStdioTapDevState,
 } from "./platform.js";
