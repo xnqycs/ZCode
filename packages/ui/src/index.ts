@@ -111,7 +111,6 @@ export {
   SETTINGS_USER_ACTION_FEATURES,
   USER_ACTION_CATALOG,
 } from "./lib/userActionTraceCatalog.js";
-export { recordArmsCustomEventForE2E } from "./lib/armsCustomEventObservability.js";
 export { generateMobileDeviceFingerprint, setStreamClientId } from "./lib/streamClientId.js";
 export { GlobalDatabaseStartupLoading } from "./root/GlobalDatabaseStartupLoading.js";
 

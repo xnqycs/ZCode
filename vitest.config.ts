@@ -67,16 +67,6 @@ export default defineConfig({
       "@": resolve(__dirname, "packages/ui/src"),
       "@desktop": resolve(__dirname, "packages/desktop/src"),
       "@web": resolve(__dirname, "packages/web/src"),
-      // 间接 import desktopNetworkTelemetry 等的单测无需真实 ARMS；需 vi.fn 的用例在文件内 vi.mock 覆盖
-      // Bugfix: 具体的 /browser 子路径必须排在包根别名前，否则会被根别名拼成不存在的 stub.ts/browser。
-      "@arms/rum-electron/browser": resolve(
-        __dirname,
-        "packages/desktop/test/mocks/armsRumElectronStub.ts",
-      ),
-      "@arms/rum-electron": resolve(
-        __dirname,
-        "packages/desktop/test/mocks/armsRumElectronStub.ts",
-      ),
     },
   },
   test: {

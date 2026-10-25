@@ -145,41 +145,7 @@ export {
   buildLocalMediaPreviewUrl,
   createOpenInEditorRemoteTarget,
 } from "./platform.js";
-export type {
-  ArmsCustomEventPayload,
-  ConfigureFinalArmsCustomEventE2ERequest,
-  FinalArmsCustomEventE2EEntry,
-  FinalArmsCustomEventPayload,
-  MobilePluginDiscoveryTelemetry,
-  RendererTelemetryEventPayload,
-  TelemetryEventPayload,
-  TelemetryRendererContext,
-} from "./telemetry.js";
-export {
-  PLUGIN_TELEMETRY_EVENTS,
-  mobilePluginDiscoveryTelemetrySchema,
-  sanitizePluginTelemetryDetail,
-  collectTelemetryRendererContext,
-  resolveSafeTelemetryHostname,
-  sanitizeTelemetryErrorMessage,
-  sanitizeTelemetrySkillName,
-  sanitizeTelemetryEventDetail,
-} from "./telemetry.js";
-export type {
-  RedactTelemetryTextOptions,
-  TelemetryProviderIdentity,
-  TelemetryProviderScope,
-} from "./telemetryRedaction.js";
-export {
-  TELEMETRY_SAFE_BUILTIN_MODEL_IDS,
-  TELEMETRY_TEXT_MAX_LENGTH,
-  redactTelemetryText,
-  redactTelemetryUrl,
-  resolveTelemetryModelId,
-  resolveTelemetryProviderScope,
-  sanitizeTelemetryModelValue,
-} from "./telemetryRedaction.js";
-export * from "./remoteUsageTelemetry.js";
+export { sanitizeTelemetrySkillName } from "./telemetry.js";
 export type { LaunchMarks } from "./launchMarks.js";
 export { LAUNCH_MARKS_QUERY_KEY, parseLaunchMarks, serializeLaunchMarks } from "./launchMarks.js";
 export type {

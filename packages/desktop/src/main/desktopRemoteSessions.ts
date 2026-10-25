@@ -6,7 +6,6 @@ import type { MessagePortMain, UtilityProcess as ElectronUtilityProcess } from "
 import {
   buildRemoteWorkspaceIdentity,
   buildRemoteEnvironmentKey,
-  buildSshRemoteHostKey,
   buildServerRemoteWorkspaceIdentity,
   HostMessageTypes,
   HostResponseTypes,
@@ -25,11 +24,12 @@ import {
   type HostPreparedProjectWorkspace,
   type HostProjectWorkspaceNavigationInput,
 } from "@zcode/shared";
-import type {
-  RemoteConnectionStats,
-  RemoteDisconnectReason,
-  RemoteGaugeTransition,
-} from "./desktopRemoteUsageArmsTelemetry.js";
+type RemoteDisconnectReason =
+  | "connection-closed"
+  | "disposed"
+  | "window-closed"
+  | "host-exit"
+  | "app-shutdown";
 import type { RemoteAssetDirs } from "./desktopRuntimeEnv.js";
 import { ProviderProvisioningEnvironmentCoordinator } from "./providerProvisioningEnvironmentCoordinator.js";
 
@@ -49,7 +49,6 @@ interface PendingConnect {
   requestId: string;
   webContentsId: number;
   win: BrowserWindow;
-  remoteUsageTelemetryEligible: boolean;
   resolve: (sessionId: string) => void;
   onConnected?: (descriptor: WindowHostRemoteWorkspaceDescriptor) => void;
   reject: (error: Error) => void;
@@ -86,7 +85,6 @@ interface RemoteAttachmentRoute {
   attachmentState: "attachable" | "closed";
   connectedAtMonotonicMs: number;
   connectFinalized: boolean;
-  remoteUsageTelemetryEligible: boolean;
   providerProvisioningDispose?: () => void;
 }
 
@@ -143,19 +141,6 @@ function isSameRemoteTarget(left: RemoteTarget, right: RemoteTarget): boolean {
   }
 }
 
-function buildRemoteTargetTelemetryKey(target: RemoteTarget): string {
-  switch (target.kind) {
-    case "ssh":
-      return `ssh:${buildSshRemoteHostKey(target)}`;
-    case "wsl":
-      return `wsl:${target.distro?.trim() || "default"}\0${target.user?.trim() ?? ""}`;
-    case "docker":
-      return `docker:${target.container}`;
-    case "server":
-      return `server:${normalizeServerRemoteUrlForComparison(target.url)}`;
-  }
-}
-
 function closeMessagePort(port: MessagePortMain | undefined): void {
   if (!port) return;
   try {
@@ -182,17 +167,6 @@ export function createRemoteWorkspaceSessionManager(options: {
   };
   rendererAttachmentReadyTimeoutMs?: number;
   workspaceBindReadyTimeoutMs?: number;
-  reportRemoteConnectionStateChanged?: (params: {
-    rendererId: number;
-    remoteKind: RemoteTarget["kind"];
-    transition: Exclude<RemoteGaugeTransition, "none">;
-  }) => void;
-  reportRemoteDisconnect?: (params: {
-    rendererId: number;
-    remoteKind: RemoteTarget["kind"];
-    disconnectReason: RemoteDisconnectReason;
-    durationMs: number;
-  }) => void;
   monotonicNowMs?: () => number;
   webRemoteControlManagerRef: {
     current: {
@@ -474,25 +448,8 @@ export function createRemoteWorkspaceSessionManager(options: {
     );
     if (!route.connectFinalized) {
       route.connectFinalized = true;
-      if (route.remoteUsageTelemetryEligible) {
-        reportRemoteRouteConnected(route);
-      }
     }
     pending.resolve();
-  }
-
-  function reportRemoteRouteConnected(route: RemoteAttachmentRoute): void {
-    try {
-      options.reportRemoteConnectionStateChanged?.({
-        rendererId: route.webContentsId,
-        remoteKind: route.descriptor.target.kind,
-        transition: "connected",
-      });
-    } catch (error) {
-      options.logger.warn("[remote-usage-arms] connected reporter failed", {
-        error,
-      });
-    }
   }
 
   function handleConnected(
@@ -532,7 +489,6 @@ export function createRemoteWorkspaceSessionManager(options: {
         existingRoute.mobileOnly = false;
         // 手机 scope 没有 renderer ready；桌面采用时重新走唯一的连接提交点。
         existingRoute.connectFinalized = false;
-        existingRoute.remoteUsageTelemetryEligible ||= pending.remoteUsageTelemetryEligible;
         void (existingRoute.providerProvisioningReady ?? Promise.resolve())
           .then(() => attachRendererPort(pending.win, existingRoute, "desktop-join"))
           .then(
@@ -545,12 +501,6 @@ export function createRemoteWorkspaceSessionManager(options: {
       // Bug 原因：显式 conversation bind 与 Source 自动恢复可能 join 到同一个 Host
       // logical session。过去这里覆盖 routesBySessionId，旧 candidate 的 ready ACK 会被
       // 判 stale，遗留 timer 最终又回收健康 attachment。重复 connect 只等待唯一 route ready。
-      const promoteTelemetryEligibility =
-        !existingRoute.remoteUsageTelemetryEligible && pending.remoteUsageTelemetryEligible;
-      existingRoute.remoteUsageTelemetryEligible ||= pending.remoteUsageTelemetryEligible;
-      if (promoteTelemetryEligibility && existingRoute.connectFinalized) {
-        reportRemoteRouteConnected(existingRoute);
-      }
       void waitForJoinedRouteReady(existingRoute, descriptor).then(
         () => {
           pending.onConnected?.(descriptor);
@@ -567,7 +517,6 @@ export function createRemoteWorkspaceSessionManager(options: {
       attachmentState: "attachable",
       connectedAtMonotonicMs: monotonicNowMs(),
       connectFinalized: false,
-      remoteUsageTelemetryEligible: pending.remoteUsageTelemetryEligible,
     };
     routesBySessionId.set(descriptor.remoteSessionId, route);
     const environmentKey = buildRemoteEnvironmentKey(descriptor.target);
@@ -757,41 +706,11 @@ export function createRemoteWorkspaceSessionManager(options: {
   }
 
   function retireActiveRoute(
-    route: RemoteAttachmentRoute,
-    reason: RemoteDisconnectReason,
+    _route: RemoteAttachmentRoute,
+    _reason: RemoteDisconnectReason,
     mutate: () => void,
   ): void {
-    const wasActive =
-      route.remoteUsageTelemetryEligible &&
-      route.attachmentState === "attachable" &&
-      route.connectFinalized;
     mutate();
-    if (!wasActive) return;
-
-    const common = {
-      rendererId: route.webContentsId,
-      remoteKind: route.descriptor.target.kind,
-    };
-    try {
-      options.reportRemoteConnectionStateChanged?.({
-        ...common,
-        transition: reason,
-      });
-    } catch (error) {
-      // telemetry 是连接生命周期的旁路，不能因 reporter 异常回滚 route 退出状态。
-      options.logger.warn("[remote-usage-arms] disconnect gauge reporter failed", { error });
-    }
-    try {
-      options.reportRemoteDisconnect?.({
-        ...common,
-        disconnectReason: reason,
-        durationMs: Math.max(0, Math.round(monotonicNowMs() - route.connectedAtMonotonicMs)),
-      });
-    } catch (error) {
-      options.logger.warn("[remote-usage-arms] disconnect reporter failed", {
-        error,
-      });
-    }
   }
 
   function handleClosed(
@@ -944,7 +863,6 @@ export function createRemoteWorkspaceSessionManager(options: {
       attachmentState: "attachable",
       connectedAtMonotonicMs: monotonicNowMs(),
       connectFinalized: true,
-      remoteUsageTelemetryEligible: false,
     };
     routesBySessionId.set(descriptor.remoteSessionId, route);
     const environmentKey = buildRemoteEnvironmentKey(descriptor.target);
@@ -1131,7 +1049,6 @@ export function createRemoteWorkspaceSessionManager(options: {
     requestId?: string,
     context?: RemoteWorkspaceConnectContext,
     lifecycle?: {
-      remoteUsageTelemetryEligible?: boolean;
       onConnected?: (descriptor: WindowHostRemoteWorkspaceDescriptor) => void;
     },
   ): Promise<string> {
@@ -1166,7 +1083,6 @@ export function createRemoteWorkspaceSessionManager(options: {
         requestId: resolvedRequestId,
         webContentsId: win.webContents.id,
         win,
-        remoteUsageTelemetryEligible: lifecycle?.remoteUsageTelemetryEligible ?? false,
         onConnected: lifecycle?.onConnected,
         resolve,
         reject,
@@ -1360,21 +1276,6 @@ export function createRemoteWorkspaceSessionManager(options: {
         });
       }
     }
-  }
-
-  function getRemoteConnectionStats(): RemoteConnectionStats {
-    const activeRoutes = Array.from(routesBySessionId.values()).filter(
-      (route) =>
-        route.remoteUsageTelemetryEligible &&
-        route.attachmentState === "attachable" &&
-        route.connectFinalized,
-    );
-    return {
-      activeSessionCount: activeRoutes.length,
-      activeTargetCount: new Set(
-        activeRoutes.map((route) => buildRemoteTargetTelemetryKey(route.descriptor.target)),
-      ).size,
-    };
   }
 
   function disposeRemoteWorkspaceSession(sessionId: string, _reason?: string): void {
@@ -1586,7 +1487,6 @@ export function createRemoteWorkspaceSessionManager(options: {
     confirmRendererAttachmentReady,
     reattachRemoteWorkspaceSessionsForWindow,
     hasRemoteWorkspaceSessionForTarget,
-    getRemoteConnectionStats,
     disposeRemoteWorkspaceSession,
     disposeRemoteWorkspaceSessionsForWindow,
     disposeAllAndWaitForAppShutdown: async (_reason: string) => {

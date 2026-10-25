@@ -46,7 +46,6 @@ import type {
   SSHConfigAliasOption,
   RendererActionTraceBatchV1,
   RendererActionTraceConfigV1,
-  RendererHeapSample,
   TaskNotificationPayload,
   WindowScreenshotResult,
   EmbeddedBrowserDataClearResult,
@@ -81,7 +80,6 @@ declare global {
         context?: {
           workspacePath: string;
           workspaceIdentity?: string;
-          connectTrigger?: import("@zcode/shared").RemoteWorkspaceConnectTrigger;
         },
       ): Promise<{ success: boolean; error?: string; sessionId?: string }>;
       requestSourceSettingsAttachment?(sourceServerId: string): Promise<{ attachmentId: string }>;
@@ -284,7 +282,6 @@ declare global {
       /** 发送已结束的 ui_action batch；Main 不返回业务结果。 */
       reportRendererActionTraceBatch?(batch: RendererActionTraceBatchV1): void;
       /** 主窗口 renderer 的 60 秒 heap 读数；单向 send，Main 不回执。 */
-      reportRendererHeapSample?(sample: RendererHeapSample): void;
       /** 触发任务状态对应的系统通知 */
       showTaskNotification(payload: TaskNotificationPayload): void;
       /** 导出日志：打包 ~/.zcode/v2 及外部 agent 日志为 zip 并在 Finder 中显示 */

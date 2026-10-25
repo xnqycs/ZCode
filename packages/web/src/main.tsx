@@ -480,7 +480,6 @@ function createWebPlatform(options?: {
       _context?: {
         workspacePath: string;
         workspaceIdentity?: string;
-        connectTrigger?: import("@zcode/shared").RemoteWorkspaceConnectTrigger;
       },
     ) {
       if (platformProxy) {
@@ -572,7 +571,6 @@ function createWebPlatform(options?: {
     onPaymentCallback: () => () => {},
     onShareImport: () => () => {},
     notifyRendererReady: () => {},
-    reportArmsCustomEvent: () => Promise.resolve(),
     showTaskNotification: (payload) => {
       if (document.hasFocus()) {
         return;

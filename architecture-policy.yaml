@@ -900,3 +900,8 @@ exceptions:
       - packages/ui/src/settings/DynamicWorkflowModeSetting.tsx
       - packages/ui/src/store/dynamicWorkflowAvailabilityStore.ts
     reason: Admitted upstream files edited only to let the user's dynamic workflow mode choice always win and keep the settings row visible; adopting packages/shared/src and packages/ui/src needs a separate module boundary refactor.
+  - id: database-startup-relay-telemetry-removal
+    rule: unmanaged-new-file
+    paths:
+      - packages/desktop/src/main/databaseStartupRelay.ts
+    reason: Existing database startup relay only removes the /event/report hook; module ownership and boundary are unchanged, adopting the desktop main directory is out of scope.

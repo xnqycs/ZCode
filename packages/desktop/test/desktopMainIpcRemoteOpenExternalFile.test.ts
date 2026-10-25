@@ -13,8 +13,6 @@ const h = vi.hoisted(() => ({
   registerWebRemoteControlIpcHandlers: vi.fn(),
   shellOpenExternal: vi.fn(),
   shellOpenPath: vi.fn(),
-  configureRemoteUsageArmsTelemetry: vi.fn(),
-  reportRemoteConnectResultToArms: vi.fn(),
 }));
 
 vi.mock("electron", () => ({
@@ -45,18 +43,8 @@ vi.mock("../src/main/desktopOAuthDeepLink.js", () => ({
   registerOAuthState: vi.fn(),
 }));
 
-vi.mock("../src/main/desktopArmsCustomEvent.js", () => ({
-  createFinalArmsCustomEventE2EController: vi.fn(),
-  dispatchFinalArmsCustomEvent: vi.fn(),
-}));
-
 vi.mock("../src/main/desktopWebRemoteControlIpc.js", () => ({
   registerWebRemoteControlIpcHandlers: h.registerWebRemoteControlIpcHandlers,
-}));
-
-vi.mock("../src/main/desktopRemoteUsageArmsTelemetry.js", () => ({
-  configureRemoteUsageArmsTelemetry: h.configureRemoteUsageArmsTelemetry,
-  reportRemoteConnectResultToArms: h.reportRemoteConnectResultToArms,
 }));
 
 function createOptions(): RemoteIpcOptions {

@@ -6,15 +6,6 @@ import {
 } from "@zcode/shared";
 /* eslint-disable max-lines -- preload bridge 集中暴露桌面平台 IPC，拆散会让 contextBridge 权限边界更难审计。 */
 import { contextBridge, ipcRenderer, webFrame, webUtils } from "electron";
-import {
-  installArmsRumBridgeIpcForward,
-  scheduleArmsEventBridgePatch,
-} from "../shared/armsRumBridgeForward.js";
-
-// ARMS frame preload 闭包内的 send 不会随后序 ipcRenderer.send 补丁生效，须同步包装 Bridge.send
-installArmsRumBridgeIpcForward(ipcRenderer);
-scheduleArmsEventBridgePatch();
-
 /** 从 command-line 参数中解析 --device-id= */
 function parseDeviceIdFromArgs(): string {
   for (const arg of process.argv) {
@@ -64,7 +55,6 @@ import type {
   TaskNotificationPayload,
   RendererActionTraceBatchV1,
   RendererActionTraceConfigV1,
-  RendererHeapSample,
   PostUpdateReleaseNotesPayload,
   RemoteSessionClosedEvent,
   RemoteSessionReconnectedEvent,
@@ -267,7 +257,6 @@ contextBridge.exposeInMainWorld("zcode", {
     context?: {
       workspacePath?: string;
       workspaceIdentity?: string;
-      connectTrigger?: import("@zcode/shared").RemoteWorkspaceConnectTrigger;
       confirmSourceServerInstall?: boolean;
     },
   ) =>
@@ -728,13 +717,6 @@ contextBridge.exposeInMainWorld("zcode", {
   },
   /** 通知 main process renderer 已就绪 */
   notifyRendererReady: () => ipcRenderer.send(PlatformChannels.RendererReady),
-  /** 通过 main process 统一上报 ARMS 自定义事件 */
-  reportArmsCustomEvent: (payload: {
-    name: string;
-    group: string;
-    value?: number;
-    properties?: Record<string, string | number | boolean | undefined>;
-  }) => ipcRenderer.invoke(PlatformChannels.ReportArmsCustomEvent, payload),
   /** 读取 Renderer 用户操作 Trace 灰度配置。 */
   getRendererActionTraceConfig: (): Promise<RendererActionTraceConfigV1> =>
     ipcRenderer.invoke(PlatformChannels.GetRendererActionTraceConfig),
@@ -752,12 +734,6 @@ contextBridge.exposeInMainWorld("zcode", {
     ipcRenderer.send(PlatformChannels.ReportLocalTtftBatch, batch),
   reportRendererActionTraceBatch: (batch: RendererActionTraceBatchV1): void =>
     ipcRenderer.send(PlatformChannels.ReportRendererActionTraceBatch, batch),
-  /**
-   * 主窗口 renderer 的 60 秒 heap 读数。
-   * 只提供单向 send：main 不回执，renderer 也不能靠它反查 main 的进程事实。
-   */
-  reportRendererHeapSample: (sample: RendererHeapSample): void =>
-    ipcRenderer.send(PlatformChannels.ReportRendererHeapSample, sample),
   /** 通过 main process 触发原生任务通知 */
   showTaskNotification: (payload: TaskNotificationPayload) =>
     ipcRenderer.send(PlatformChannels.ShowTaskNotification, payload),

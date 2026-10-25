@@ -26,11 +26,7 @@ import {
   type IDisposable,
   type IChannelServer,
   LoggingChannelServer,
-  NetworkTelemetryChannelServer,
 } from "@zcode/rpc";
-import { registerHostNetworkTelemetry, stopHostNetworkTelemetry } from "./hostNetworkTelemetry.js";
-import { registerHostServiceResourceTelemetry } from "./hostServiceResourceTelemetry.js";
-import { resolveResourceTelemetryEnvironmentKey } from "./hostResourceTelemetryEnvironment.js";
 import { createBrowserControlMainBridge } from "./browserControlMainBridge.js";
 import { materializeBrowserRecordingArtifact } from "./browserRecordingArtifactMaterializer.js";
 import {
@@ -193,7 +189,7 @@ import {
   createRemotePromptAttachmentTransferService,
   type RemotePromptAttachmentTransferService,
 } from "./promptAttachmentTransferService.js";
-import { startHostSelfResourceTelemetry } from "./hostSelfResourceTelemetry.js";
+import { startHostMemoryDiagnosticsLog } from "./hostMemoryDiagnosticsLog.js";
 type HostRemoteConnection = ServerRemoteConnection;
 interface HostRemoteConnectionCapabilities {
   promptAttachmentTransferFactory?: (
@@ -1175,14 +1171,10 @@ async function dispatchManualAutomationRun(params: {
 // Node warning 不是远端连接失败，改成结构化 warn，避免默认 stderr 被误染成 error。
 process.on("warning", (warning) => logger.warn(`${warning.name}: ${warning.message}`));
 
-registerHostNetworkTelemetry(parentPort);
-// Host 进程自身的 60 秒采样：一次读数两个出口——门控后写本地
-// `[memory]` 行，同一次读数换算成 HostResourceSample 经 parentPort 送 main 作 heap 来源。
-// services 计数器由各 service 工厂自注册。
-const hostSelfResourceTelemetry = startHostSelfResourceTelemetry({
+// Host 进程自身的 60 秒本地内存诊断日志；services 计数器由各 service 工厂自注册。
+const hostSelfResourceTelemetry = startHostMemoryDiagnosticsLog({
   logger,
   collectCounters: collectServiceMemoryDiagnostics,
-  postMessage: parentPort ? (message) => parentPort.postMessage(message) : undefined,
 });
 
 const runtimeProcessLifecycleReporter = {
@@ -1828,8 +1820,6 @@ async function ensureSourceServerConnectionManager(): Promise<SourceServerConnec
   });
   return await sourceServerRuntimeInitializeFlight;
 }
-/** 本地 host services 的资源遥测订阅；远端连接的订阅由各自的 connection handle 持有。 */
-let activeLocalResourceTelemetry: IDisposable | null = null;
 // 资源管理器采样只在 main 请求时执行一次，Host 不维护任何周期定时器。
 const hostResourceUsageResponder = createHostResourceUsageResponder({
   getAgentService: () => activeServices?.getOptional(IZCodeAgentService),
@@ -1872,23 +1862,6 @@ async function createWindowRemoteConnectionHandle(params: {
   let managerConnectionInvalidatedSubscription: { dispose(): void } | undefined;
   let managerReconnectSubscription: { dispose(): void } | undefined;
   let services: ServiceCollection;
-  let resourceTelemetry: IDisposable | undefined;
-  const refreshResourceTelemetry = () => {
-    resourceTelemetry?.dispose();
-    // Source 重连会替换 services；遥测也必须释放旧订阅并挂到新一代代理，避免重连后静默丢样本。
-    resourceTelemetry = registerHostServiceResourceTelemetry({
-      services,
-      postMessage: (message) => parentPort?.postMessage(message),
-      runtimeSurface: "remote",
-      // SSH/WSL/Docker 也会复用兼容的旧 Source；所有 Server 都须声明能力才订阅新增事件。
-      telemetrySupported: connection.serverInfo.capabilities.processResourceTelemetry === true,
-      environmentKey: resolveResourceTelemetryEnvironmentKey(
-        params.target,
-        connection.serverInfo.serverId,
-      ),
-      onError: (error) => logger.warn("remote resource telemetry subscription failed", error),
-    });
-  };
   let lastNotifiedRecoveryAttempt = 0;
   let disposed = false;
   let sourceClosed = false;
@@ -2037,7 +2010,6 @@ async function createWindowRemoteConnectionHandle(params: {
         sourceServices: activeServices ?? undefined,
         targetKind: params.target.kind,
       });
-      refreshResourceTelemetry();
       lastNotifiedRecoveryAttempt = 0;
       for (const listener of reconnectListeners) listener();
     });
@@ -2062,7 +2034,6 @@ async function createWindowRemoteConnectionHandle(params: {
       if (!disposed && !sourceClosed && event.channel === "state:projects") notifyProjectChange();
     });
   }
-  refreshResourceTelemetry();
   // 桌面 attachment 对远端媒体走 Host loopback Range 数据面；services 会随 Source 重连换代，
   // 工厂在调用时再取当前 file service。server 直连保持 renderer inline 读取。
   const remoteMediaPreviewFactory =
@@ -2168,7 +2139,6 @@ async function createWindowRemoteConnectionHandle(params: {
       managerConnectionInvalidatedSubscription?.dispose();
       managerReconnectSubscription?.dispose();
       projectSubscription?.dispose();
-      resourceTelemetry?.dispose();
       await disposeHostRemoteConnection(connection);
     },
   };
@@ -2401,26 +2371,6 @@ const windowHostControllerRuntime = createWindowHostControllerRuntime({
   },
 });
 
-function wireLocalResourceTelemetry(services: ServiceCollection): void {
-  activeLocalResourceTelemetry?.dispose();
-  activeLocalResourceTelemetry = registerHostServiceResourceTelemetry({
-    services,
-    postMessage: (message) => parentPort?.postMessage(message),
-    runtimeSurface: "local",
-    onError: (error) => logger.warn("local resource telemetry subscription failed", error),
-  });
-}
-
-function disposeLocalResourceTelemetry(): void {
-  try {
-    activeLocalResourceTelemetry?.dispose();
-  } catch {
-    // 资源遥测释放失败不能阻塞 Host 的既有 shutdown barrier。
-  } finally {
-    activeLocalResourceTelemetry = null;
-  }
-}
-
 type ExposedServicePortHandle = {
   server: IChannelServer & { ready(): void };
   dispose(): void;
@@ -2561,8 +2511,7 @@ function exposeServicesOnMessagePort(
   // attach 模式复用已就绪服务，必须立即初始化新的 RPC MessagePort。
   logger.info(`creating ChannelServer (deferInit=${deferInit})`);
   const rawServer = new ChannelServer(protocol, "host", 1000, deferInit);
-  const loggedServer = new LoggingChannelServer(rawServer, logRpc);
-  const server = new NetworkTelemetryChannelServer(loggedServer);
+  const server = new LoggingChannelServer(rawServer, logRpc);
   const agentService = services.getOptional(IZCodeAgentService);
   const connectionContext = { connectionId: `host-rpc-${randomUUID()}`, clientMode };
   const connectionScope = agentService
@@ -2756,10 +2705,8 @@ async function disposeHostResources(reason: string): Promise<HostShutdownResult>
     logger.info(`disposing host resources, reason=${reason}`);
 
     pluginSandboxRegistrationBridge.dispose();
-    stopHostNetworkTelemetry();
     hostNetworkCapture.setCaptureId(null);
     hostSelfResourceTelemetry.stop();
-    disposeLocalResourceTelemetry();
     disposeAttachedServicePorts();
     windowHostControllerRuntime.dispose();
     for (const key of Array.from(cronRunSubscriptions.keys())) {
@@ -2841,9 +2788,7 @@ function disposeHostResourcesBestEffort(reason: string): void {
 
   logger.info(`disposing host resources, reason=${reason}`);
   pluginSandboxRegistrationBridge.dispose();
-  stopHostNetworkTelemetry();
   hostNetworkCapture.setCaptureId(null);
-  disposeLocalResourceTelemetry();
   disposeAttachedServicePorts();
   windowHostControllerRuntime.dispose();
   for (const key of Array.from(cronRunSubscriptions.keys())) {
@@ -4023,7 +3968,6 @@ parentPort.on("message", async (e: Electron.MessageEvent) => {
           },
         );
         services.register(ISourceServerManagementService, sourceServerManagementService);
-        wireLocalResourceTelemetry(services);
         hasDisposedHostResources = false;
         disposeHostResourcesInFlight = null;
         const agentWarmupTargets =

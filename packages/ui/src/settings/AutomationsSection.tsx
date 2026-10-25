@@ -4,7 +4,6 @@ import {
   useCallback,
   useEffect,
   useMemo,
-  useRef,
   useState,
   type ComponentType,
   type SVGProps,
@@ -1154,7 +1153,7 @@ export function AutomationsSection({
   );
 
   const handleDelete = useCallback(
-    async (automation: ZCodeAutomation, source: "list" | "editor" = "list") => {
+    async (automation: ZCodeAutomation, _source: "list" | "editor" = "list") => {
       const confirmed = await confirmDialog({
         presentation: "automation-confirmation",
         title: intl.formatMessage({ id: "automations.delete.title" }),

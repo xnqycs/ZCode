@@ -161,7 +161,6 @@ import {
   DEFAULT_DYNAMIC_WORKFLOW_MODE,
   isDynamicWorkflowModeEnabled,
   normalizeDynamicWorkflowMode,
-  type AgentLaneResourceSample,
   type ProcessResourceCliLane,
   type ZCodeMcpTelemetryEvent,
   type ZCodeMcpResourceSample,
@@ -1296,7 +1295,6 @@ export function createZCodeAgentService(
   }
   const sessionRuntimePreferencesRequestEmitter =
     new Emitter<ZCodeAgentSessionRuntimePreferencesRequest>();
-  const processResourceSampleEmitter = new Emitter<AgentLaneResourceSample>();
   const toolExecResourceEmitter = new Emitter<ZCodeToolExecResource>();
   const mcpResourceSamplesEmitter = new Emitter<ZCodeMcpResourceSample[]>();
   const mcpTelemetryEmitter = new Emitter<ZCodeMcpTelemetryEvent>();
@@ -2146,21 +2144,6 @@ export function createZCodeAgentService(
           if (pending?.client === client) cancelProviderRuntimeHeaders(key, pending);
           return;
         }
-        if (message.method === zcodeProtocolNotifications.processResourceSample) {
-          const parsed = zcodeProcessResourceSampleSchema.safeParse(message.params);
-          if (parsed.success) {
-            processResourceSampleEmitter.fire({ ...parsed.data, lane });
-          } else {
-            logger.debug(undefined, "丢弃无效 ZCode CLI 资源样本", {
-              issues: parsed.error.issues.map((issue) => ({
-                code: issue.code,
-                path: issue.path.join("."),
-              })),
-            });
-          }
-          return;
-        }
-
         if (message.method === zcodeProtocolNotifications.toolExecResource) {
           const parsed = zcodeToolExecResourceSchema.safeParse(message.params);
           if (parsed.success) toolExecResourceEmitter.fire(parsed.data);
@@ -3595,7 +3578,6 @@ export function createZCodeAgentService(
     for (const emitter of providerRuntimeHeadersCancelledEmitters.values()) emitter.dispose();
     providerRuntimeHeadersCancelledEmitters.clear();
     sessionRuntimePreferencesRequestEmitter.dispose();
-    processResourceSampleEmitter.dispose();
     mcpTelemetryEmitter.dispose();
     toolExecResourceEmitter.dispose();
     mcpResourceSamplesEmitter.dispose();
@@ -6705,10 +6687,6 @@ export function createZCodeAgentService(
 
     onDynamicWorkspaceConfigFrame(params: ZCodeAgentWorkspaceTarget) {
       return getWorkspaceConfigFrameEmitter(params).event;
-    },
-
-    onDynamicProcessResourceSample() {
-      return processResourceSampleEmitter.event;
     },
 
     onDynamicToolExecResource() {

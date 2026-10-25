@@ -9,7 +9,6 @@ import {
 } from "@zcode/client";
 import {
   buildWebRemoteControlExternalQrUrl,
-  parseRemoteWorkspaceIdentity,
   WEB_REMOTE_CONTROL_OUTBOUND_PAYLOAD_BUFFER_TIMEOUT_MS,
   type ZCodeEndpointUrls,
   type HostPreparedProjectWorkspace,

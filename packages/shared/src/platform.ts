@@ -24,12 +24,10 @@ import type {
   WebRemoteControlWorkspaceTarget,
 } from "./web-remote-control.js";
 import type { AppSettings, Locale } from "./protocol.js";
-import type { ArmsCustomEventPayload } from "./telemetry.js";
 import type {
   RendererActionTraceBatchV1,
   RendererActionTraceConfigV1,
 } from "./rendererActionTrace.js";
-import type { RendererHeapSample } from "./validation.js";
 import type {
   CuaAccessibilitySettingsResult,
   OpenCuaPermissionOnboardingOptions,
@@ -590,7 +588,6 @@ export interface ConnectRemoteRequest {
   requestId?: string;
   workspacePath?: string;
   workspaceIdentity?: string;
-  connectTrigger?: import("./remoteUsageTelemetry.js").RemoteWorkspaceConnectTrigger;
   confirmSourceServerInstall?: boolean;
 }
 
@@ -758,7 +755,6 @@ export interface IPlatformService {
     context?: {
       workspacePath?: string;
       workspaceIdentity?: string;
-      connectTrigger?: import("./remoteUsageTelemetry.js").RemoteWorkspaceConnectTrigger;
       confirmSourceServerInstall?: boolean;
     },
   ): Promise<{
@@ -901,9 +897,6 @@ export interface IPlatformService {
   /** 触发任务状态对应的系统通知，由宿主环境决定是否真正展示 */
   showTaskNotification(payload: TaskNotificationPayload): void;
 
-  /** 通过宿主环境上报 ARMS 自定义事件；Web 端当前为空实现 */
-  reportArmsCustomEvent(payload: ArmsCustomEventPayload): Promise<void>;
-
   /** 读取 Desktop Renderer 用户操作 Trace 的当前灰度配置；Web/手机不实现。 */
   getRendererActionTraceConfig?(): Promise<RendererActionTraceConfigV1>;
   /** 订阅 Main 推送的 Renderer 用户操作 Trace 配置；Web/手机不实现。 */
@@ -913,12 +906,6 @@ export interface IPlatformService {
   /** Renderer → Main：发送已结束的 ui_action batch；严格旁路、fire-and-forget。 */
   reportRendererActionTraceBatch?(batch: RendererActionTraceBatchV1): void;
   reportLocalTtftBatch?(batch: import("./localTtft.js").LocalTtftBatch): void;
-
-  /**
-   * Renderer → Main：主窗口 renderer 每 60 秒的 heap 读数，进 `renderer_main` 角色事件。单向 send、fire-and-forget；
-   * Web 端与手机远控没有桥，不实现即 no-op。
-   */
-  reportRendererHeapSample?(sample: RendererHeapSample): void;
 
   /** 同步当前窗口所有 tab 的 workspace 路径到 main 进程（用于跨窗口去重） */
   syncWindowTabs(paths: string[]): void;

@@ -1,18 +1,15 @@
 import { normalizeRemoteConnectionError } from "@zcode/shared";
 /* eslint-disable max-lines -- 远程连接、OAuth 回调、遥测和通知 IPC 共用窗口级上下文，集中注册避免跨文件状态漂移。 */
 import { app, BrowserWindow, ipcMain, shell, type WebContents } from "electron";
-import armsRum from "@arms/rum-electron";
 import {
-  armsCustomEventPayloadSchema,
   formatZodError,
   hostRemoteWorkspaceConnectFailedResponseSchema,
-  normalizeUnknownError,
   InternalChannels,
   isPublicZCodeErrorCode,
   isTrustedCodingPlanWebviewOrigin,
+  normalizeUnknownError,
   PlatformChannels,
   remoteTargetSchema,
-  type ArmsRumEnv,
   type BindRemoteWorkspaceSessionContextIpcResult,
   type RemoteTarget,
   type WindowHostRemoteWorkspaceDescriptor,
@@ -25,15 +22,6 @@ import {
   parseOAuthStateRegistration,
   registerOAuthState,
 } from "./desktopOAuthDeepLink.js";
-import {
-  dispatchFinalArmsCustomEvent,
-  enableSharedFinalArmsCustomEventE2EController,
-} from "./desktopArmsCustomEvent.js";
-import {
-  configureRemoteUsageArmsTelemetry,
-  reportRemoteConnectResultToArms,
-  type RemoteConnectionStats,
-} from "./desktopRemoteUsageArmsTelemetry.js";
 import {
   registerWebRemoteControlIpcHandlers,
   type WebRemoteControlIpcManager,
@@ -176,14 +164,6 @@ export function registerRemoteIpcHandlers(options: {
     warn: (...args: unknown[]) => void;
     error: (...args: unknown[]) => void;
   };
-  armsCustomContext: {
-    deviceMid: string;
-    platform: NodeJS.Platform;
-    appVersion: string;
-    armsEnv: ArmsRumEnv;
-  };
-  /** 仅由 VITE_ZCODE_E2E_STORE_BRIDGE + test runner 双门禁打开。 */
-  finalArmsCustomEventE2EEnabled?: boolean;
   webRemoteControlManager: WebRemoteControlIpcManager;
   createRemoteWorkspaceSession: (
     win: BrowserWindow,
@@ -195,11 +175,9 @@ export function registerRemoteIpcHandlers(options: {
       confirmSourceServerInstall?: boolean;
     },
     lifecycle?: {
-      remoteUsageTelemetryEligible?: boolean;
       onConnected?: (descriptor: WindowHostRemoteWorkspaceDescriptor) => void;
     },
   ) => Promise<string>;
-  getRemoteConnectionStats: () => RemoteConnectionStats;
   disposeRemoteWorkspaceSession: (
     sessionId: string,
     reason: string,
@@ -229,29 +207,6 @@ export function registerRemoteIpcHandlers(options: {
   listAvailableDockerContainers: () => Promise<unknown[]>;
   listSSHConfigAliases: () => Promise<unknown[]>;
 }) {
-  const finalArmsCustomEventE2E = options.finalArmsCustomEventE2EEnabled
-    ? enableSharedFinalArmsCustomEventE2EController()
-    : null;
-
-  configureRemoteUsageArmsTelemetry({
-    armsCustomContext: options.armsCustomContext,
-    getRemoteConnectionStats: options.getRemoteConnectionStats,
-    sendCustom: (payload) =>
-      armsRum.sendCustom(payload as Parameters<typeof armsRum.sendCustom>[0]),
-    e2eController: finalArmsCustomEventE2E,
-    logger: options.logger,
-  });
-
-  function reportRemoteConnectResultToArmsSafely(
-    params: Parameters<typeof reportRemoteConnectResultToArms>[0],
-  ): void {
-    try {
-      reportRemoteConnectResultToArms(params);
-    } catch (error) {
-      options.logger.warn("[remote-usage-arms] connect result reporter failed", { error });
-    }
-  }
-
   ipcMain.on(InternalChannels.ScopedServicePortReady, (event, rawPayload: unknown) => {
     if (!rawPayload || typeof rawPayload !== "object") return;
     const payload = rawPayload as {
@@ -267,23 +222,6 @@ export function registerRemoteIpcHandlers(options: {
       attachmentId,
     });
   });
-  if (finalArmsCustomEventE2E) {
-    ipcMain.handle(PlatformChannels.ReadFinalArmsCustomEventsE2E, () =>
-      finalArmsCustomEventE2E.read(),
-    );
-    ipcMain.handle(PlatformChannels.ClearFinalArmsCustomEventsE2E, () => {
-      finalArmsCustomEventE2E.clear();
-    });
-    ipcMain.handle(
-      PlatformChannels.ConfigureFinalArmsCustomEventsE2E,
-      (_event, request: unknown) => {
-        finalArmsCustomEventE2E.configure(
-          request as Parameters<typeof finalArmsCustomEventE2E.configure>[0],
-        );
-      },
-    );
-  }
-
   registerWebRemoteControlIpcHandlers({
     webRemoteControlManager: options.webRemoteControlManager,
   });
@@ -348,37 +286,6 @@ export function registerRemoteIpcHandlers(options: {
     deliverPendingDeepLink(event.sender);
   });
 
-  ipcMain.handle(PlatformChannels.ReportArmsCustomEvent, async (event, payload: unknown) => {
-    const result = armsCustomEventPayloadSchema.safeParse(payload);
-    if (!result.success) {
-      options.logger.warn(
-        "[report-arms-custom-event] invalid payload:",
-        formatZodError(result.error),
-      );
-      return;
-    }
-
-    try {
-      dispatchFinalArmsCustomEvent({
-        payload: result.data,
-        context: {
-          ...options.armsCustomContext,
-          rendererId: event.sender.id,
-        },
-        e2eController: finalArmsCustomEventE2E,
-        // FinalArmsCustomEventPayload 是 SDK RumCustomEvent 的收窄子集；SDK 额外要求
-        // BaseObject 索引签名，但这里不会动态追加未声明字段。
-        sendCustom: (payload) =>
-          armsRum.sendCustom(payload as Parameters<typeof armsRum.sendCustom>[0]),
-      });
-    } catch (error) {
-      options.logger.warn(
-        "[report-arms-custom-event] sendCustom failed:",
-        normalizeUnknownError(error).message,
-      );
-    }
-  });
-
   ipcMain.on(PlatformChannels.ShowTaskNotification, (event, payload: unknown) => {
     dispatchTaskNotification({ event, payload, logger: options.logger });
   });
@@ -402,7 +309,6 @@ export function registerRemoteIpcHandlers(options: {
       requestId?: unknown;
       workspacePath?: unknown;
       workspaceIdentity?: unknown;
-      connectTrigger?: unknown;
       confirmSourceServerInstall?: unknown;
     } =
       rawPayload && typeof rawPayload === "object" && "target" in rawPayload
@@ -411,7 +317,6 @@ export function registerRemoteIpcHandlers(options: {
             requestId?: unknown;
             workspacePath?: unknown;
             workspaceIdentity?: unknown;
-            connectTrigger?: unknown;
             confirmSourceServerInstall?: unknown;
           })
         : { target: rawPayload, requestId: undefined };
@@ -435,11 +340,6 @@ export function registerRemoteIpcHandlers(options: {
       wrappedPayload.workspaceIdentity.trim().length > 0
         ? wrappedPayload.workspaceIdentity
         : undefined;
-    const connectTriggerValue = wrappedPayload.connectTrigger;
-    const connectTrigger =
-      connectTriggerValue === "reconnect" || connectTriggerValue === "restore"
-        ? connectTriggerValue
-        : "new";
     const confirmSourceServerInstall = wrappedPayload.confirmSourceServerInstall === true;
 
     try {
@@ -466,12 +366,6 @@ export function registerRemoteIpcHandlers(options: {
           },
         },
       );
-      reportRemoteConnectResultToArmsSafely({
-        rendererId: event.sender.id,
-        result: "success",
-        remoteKind: result.data.kind,
-        connectTrigger,
-      });
       return {
         success: true,
         sessionId,
@@ -487,12 +381,6 @@ export function registerRemoteIpcHandlers(options: {
         message: normalizedError.message,
         code: normalizedError.code,
         stack: error instanceof Error ? error.stack : undefined,
-      });
-      reportRemoteConnectResultToArmsSafely({
-        rendererId: event.sender.id,
-        result: "failure",
-        remoteKind: result.data.kind,
-        connectTrigger,
       });
       const reasonCode = isPublicRemoteReasonCode(normalizedError.code)
         ? normalizedError.code

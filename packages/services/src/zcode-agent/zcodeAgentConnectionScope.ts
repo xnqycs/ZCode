@@ -910,15 +910,6 @@ export function createZCodeAgentConnectionScope(
       }
       return base.onDynamicCuaPermissionObservation();
     },
-    onDynamicProcessResourceSample() {
-      assertOpen();
-      // CLI 资源样本只供远端 Desktop Host relay 回传 main；renderer/mobile attachment
-      // 不消费该事件，也不能把它引入 continuous/replayable 消息面。
-      if (role !== "trusted-host-relay") {
-        return RpcEvent.None;
-      }
-      return base.onDynamicProcessResourceSample();
-    },
     onDynamicToolExecResource() {
       // 完成事实与会话交付无关，禁止进入 continuous/replayable attachment。
       if (disposed || role !== "trusted-host-relay") return RpcEvent.None;
