@@ -14,23 +14,10 @@ describe("desktop deep link url helpers", () => {
   });
 
   it("accepts Linux one-slash callback urls", async () => {
-    const { isOAuthCallbackUrl, isPaymentCallbackUrl } =
-      await import("../src/main/desktopDeepLinkUrl.js");
+    const { isOAuthCallbackUrl } = await import("../src/main/desktopDeepLinkUrl.js");
 
     expect(isOAuthCallbackUrl(new URL("zcode:/oauth/callback?code=1&state=s"))).toBe(true);
     expect(isOAuthCallbackUrl(new URL("zcode:oauth/callback?code=1&state=s"))).toBe(true);
-    expect(isPaymentCallbackUrl(new URL("zcode:/payment/callback?status=return"))).toBe(true);
-    expect(isPaymentCallbackUrl(new URL("zcode:payment/callback?status=cancel"))).toBe(true);
-  });
-
-  it("recognizes payment callback urls separately from OAuth", async () => {
-    const { isOAuthCallbackUrl, isPaymentCallbackUrl } =
-      await import("../src/main/desktopDeepLinkUrl.js");
-
-    const paymentUrl = new URL("zcode://payment/callback?provider=zai&channel=paypal");
-    expect(isPaymentCallbackUrl(paymentUrl)).toBe(true);
-    expect(isOAuthCallbackUrl(paymentUrl)).toBe(false);
-    expect(isPaymentCallbackUrl(new URL("zcode://payment/other"))).toBe(false);
   });
 
   it("recognizes workspace open urls and extracts the encoded folder path", async () => {
@@ -85,14 +72,6 @@ describe("desktop deep link url helpers", () => {
     expect(
       extractDeepLinkUrlFromArgs(["/opt/ZCode/zcode", "zcode://oauth/callback?code=1&amp;state=s"]),
     ).toBe("zcode://oauth/callback?code=1&state=s");
-    expect(
-      extractDeepLinkUrlFromArgs([
-        "/opt/ZCode/zcode",
-        "zcode://payment/callback?provider=zai",
-        "&channel=paypal",
-        "&status=return",
-      ]),
-    ).toBe("zcode://payment/callback?provider=zai&channel=paypal&status=return");
     expect(
       extractDeepLinkUrlFromArgs([
         "/Applications/ZCode.app/Contents/MacOS/ZCode",

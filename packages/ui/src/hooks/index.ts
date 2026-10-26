@@ -54,4 +54,3 @@ export { useGitActions } from "./useGitActions.js";
 export { useWorkspaceProviderConfigFile } from "./useWorkspaceProviderConfigFile.js";
 export { useTaskNativeSessionLogFile } from "./useTaskNativeSessionLogFile.js";
 export { useTaskSessionFilePath } from "./useTaskSessionFilePath.js";
-export { useUsageStats } from "./useUsageStats.js";

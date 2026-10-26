@@ -14,9 +14,6 @@ vi.mock("@/hooks/useAlertDialog.js", () => ({ useAlertDialog: () => requestAlert
 vi.mock("@/i18n/IntlProvider.js", () => ({
   useZCodeIntl: () => ({ intl: { formatMessage: ({ id }: { id: string }) => id } }),
 }));
-vi.mock("@/root/useAccountConnectionLossNotification.js", () => ({
-  useAccountConnectionLossNotification: vi.fn(),
-}));
 vi.mock("@/logger.js", () => ({ logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() } }));
 import { useRootOAuthEffects } from "@/root/useRootOAuthEffects.js";
 
@@ -57,7 +54,7 @@ describe("运行时登录失效进入重新登录", () => {
       markOAuthSuccess: vi.fn(),
       onReauthenticationRequired,
     });
-    const dispose = effects[1]() as () => void;
+    const dispose = effects[2]() as () => void;
     receive({ channel: ZCODE_JWT_INVALID_BROADCAST_CHANNEL });
     receive({ channel: ZCODE_JWT_INVALID_BROADCAST_CHANNEL });
     await vi.waitFor(() => expect(setUser).toHaveBeenCalledWith(null));
@@ -107,7 +104,7 @@ describe("运行时登录失效进入重新登录", () => {
         markOAuthSuccess: vi.fn(),
         onReauthenticationRequired,
       });
-      const dispose = effects[1]() as () => void;
+      const dispose = effects[2]() as () => void;
       receive({ channel: ZCODE_JWT_INVALID_BROADCAST_CHANNEL });
       if (timing === "before-alert") {
         await vi.waitFor(() => expect(getActiveProvider).toHaveBeenCalledOnce());

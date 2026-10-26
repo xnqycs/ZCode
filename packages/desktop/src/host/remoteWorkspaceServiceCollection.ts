@@ -23,7 +23,6 @@ import {
   IProviderSettingsService,
   ISourceServerWorkspaceService,
   IUsageStatsService,
-  ICodingPlanSubscriptionService,
   IClientConfigService,
   IClientScenesService,
   ISkillsService,
@@ -87,7 +86,6 @@ export const REMOTE_WORKSPACE_RPC_REGISTRATIONS = [
   ["modelSelectionService", IModelSelectionService],
   ["sourceServerWorkspaceService", ISourceServerWorkspaceService],
   ["usageStatsService", IUsageStatsService],
-  ["codingPlanSubscriptionService", ICodingPlanSubscriptionService],
   ["clientScenesService", IClientScenesService],
   ["skillsService", ISkillsService],
   ["skillSyncService", ISkillSyncService],
@@ -221,10 +219,6 @@ export function createServerRemoteWorkspaceServiceCollection(params: {
     .register(IModelSelectionService, params.connectionServices.modelSelectionService)
     .register(ISourceServerWorkspaceService, params.connectionServices.sourceServerWorkspaceService)
     .register(IUsageStatsService, params.connectionServices.usageStatsService)
-    .register(
-      ICodingPlanSubscriptionService,
-      params.connectionServices.codingPlanSubscriptionService,
-    )
     .register(IClientConfigService, params.clientConfigService)
     .register(IClientScenesService, params.connectionServices.clientScenesService)
     .register(ISkillsService, params.connectionServices.skillsService)

@@ -14,8 +14,8 @@ import type { IServiceAccessor } from "@zcode/services";
 import { useAlertDialog } from "@/hooks/useAlertDialog.js";
 import { useZCodeIntl } from "@/i18n/IntlProvider.js";
 import { logger } from "@/logger.js";
+import { createAccountConnectionRefreshObserver } from "@/root/accountConnectionRefreshObserver.js";
 import { setProviderFamilyDomain } from "@/lib/providerFamilyDomainSettings.js";
-import type { ModelProviderFamilyConnectionSelection } from "@/lib/modelProviderFamilyConnectionSelection.js";
 import {
   refreshLatestModelProviderFamilySelectionAfterLogin,
   refreshRestoredOAuthProviderFamilyAfterStartup,
@@ -25,15 +25,12 @@ import {
   requestOAuthReauthentication,
 } from "@/root/oauthCachedSessionRestore.js";
 import { shouldApplyOAuthPollingFailure } from "@/root/oauthLoginAttemptGuard.js";
-import { useAccountConnectionLossNotification } from "@/root/useAccountConnectionLossNotification.js";
 
 export { refreshRestoredOAuthProviderFamilyAfterStartup } from "@/root/oauthProviderFamilySelectionRefresh.js";
 
 export async function handleOAuthCallbackSuccess(params: {
   result: OAuthSessionCallbackResult;
-  refreshLatestModelProviderFamilySelection?: (
-    provider: OAuthProviderId,
-  ) => Promise<ModelProviderFamilyConnectionSelection | null>;
+  refreshLatestModelProviderFamilySelection?: (provider: OAuthProviderId) => Promise<unknown>;
   refreshAppSettings?: () => Promise<void>;
   refreshProviderState: () => Promise<void>;
   setProviderFamilyDomain: (provider: OAuthProviderId) => Promise<void>;
@@ -55,7 +52,7 @@ export async function handleOAuthCallbackSuccess(params: {
     });
   }
   if (params.refreshLatestModelProviderFamilySelection || !connectionInitialized) {
-    let selection: ModelProviderFamilyConnectionSelection | null = null;
+    let selection: unknown = null;
     try {
       // 原因：初始化冲突已撤销本次自动写入资格，不能重读新版本再次覆盖用户选择。
       if (connectionInitialized && params.refreshLatestModelProviderFamilySelection)
@@ -88,6 +85,26 @@ export async function handleOAuthCallbackSuccess(params: {
   logger.info("[Root] OAuth 登录成功:", params.result.userInfo.username);
 }
 
+function useAccountConnectionRefresh(services: IServiceAccessor): void {
+  useEffect(() => {
+    const observer = createAccountConnectionRefreshObserver(() => {});
+    const accept = (view: Parameters<typeof observer.accept>[0]) => {
+      void observer.accept(view);
+    };
+    const subscription = services.providerSettingsService.onDidChange(accept);
+    void services.providerSettingsService
+      .getView()
+      .then(accept)
+      .catch((error) => {
+        logger.lifecycle.warn("[AccountConnection] 初次读取失败，等待正常刷新", { error });
+      });
+    return () => {
+      observer.dispose();
+      subscription.dispose();
+    };
+  }, [services]);
+}
+
 export function useRootOAuthEffects({
   accountIntentKey,
   platform,
@@ -115,7 +132,7 @@ export function useRootOAuthEffects({
   markOAuthSuccess: (provider?: OAuthProviderId) => void;
   onReauthenticationRequired: () => void;
 }) {
-  useAccountConnectionLossNotification(services, accountIntentKey, refreshAppSettings);
+  useAccountConnectionRefresh(services);
   const requestAlert = useAlertDialog();
   const { intl } = useZCodeIntl();
   const oauthLoginSucceededRef = useRef(false);

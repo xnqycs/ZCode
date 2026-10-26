@@ -935,3 +935,11 @@ exceptions:
     rule: unmanaged-new-file
     paths: [packages/server/src/buildRemoteCuaStub.ts]
     reason: Remote bundle 的 esbuild alias 插件，只被 packages/server/build-remote.ts 构建脚本引用；它是构建期工具，不注册服务、不新增运行时依赖边或公共契约。packages/server 仍是未受管模块，接管整个 package 不在本次范围内。
+  - id: plan-removal-unmanaged-existing-edits
+    rule: unmanaged-new-file
+    paths:
+      - packages/services/src/client-config/clientConfig.ts
+      - packages/services/src/client-config/clientConfigService.ts
+      - packages/ui/src/components/marketing-touch/MarketingTouchProvider.tsx
+      - packages/ui/src/hooks/useDynamicWorkflowAvailability.ts
+    reason: Existing upstream runtime-config and marketing/workflow files are edited only to move Dynamic Workflow config onto IClientConfigService and remove plan claim/upgrade branches. Ownership and module boundaries are unchanged; adopting these directories is outside this removal.

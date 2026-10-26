@@ -51,9 +51,6 @@ const localSystemInfo = vi.fn(async () => ({
 const localListIntegratedTerminalShells = vi.fn(async () => []);
 
 const remoteServices = {
-  codingPlanSubscriptionService: {
-    getEnterprisePricing: vi.fn(async () => ({ productList: [] })),
-  },
   settingService: {
     get: vi.fn(async () => ({})),
     update: vi.fn(async () => {}),
@@ -181,14 +178,6 @@ vi.mock("@/hooks/useModelProviders.js", () => ({
   useModelProviders: () => ({ loading: false, modelProviders: [] }),
 }));
 
-vi.mock("@/hooks/useUsageEntitlement.js", () => ({
-  useUsageEntitlement: () => ({
-    loading: false,
-    snapshot: undefined,
-    error: undefined,
-  }),
-}));
-
 vi.mock("@/store/StoreProvider.js", () => ({
   useZCodeStoreWithDefault: (_selector: unknown, fallback: unknown) => fallback,
   useZCodeStore: (selector: (state: Record<string, unknown>) => unknown) =>
@@ -231,20 +220,6 @@ vi.mock("@/lib/settingsNavigation.js", () => ({
   shouldFallbackSettingsUsageTabToApp: () => false,
   writeLastSettingsSectionPreference: vi.fn(),
 }));
-
-vi.mock("@/settings/CodingPlanUpgradeDialogProvider.js", () => ({
-  useCodingPlanUpgradeDialog: () => ({
-    openCodingPlanUpgrade: vi.fn(),
-  }),
-}));
-
-vi.mock("@/lib/sidebarUsageCodingPlanProviderPreference.js", () => ({
-  readSidebarUsageCodingPlanProviderPreference: () => undefined,
-  readSidebarUsageCodingPlanSourcePreference: () => undefined,
-  writeSidebarUsageCodingPlanProviderPreference: vi.fn(),
-}));
-
-vi.mock("@/lib/codingPlanProvider.js", () => ({}));
 
 vi.mock("@/settings/ModelProviderSection.js", () => ({
   ModelProviderSection: () => null,

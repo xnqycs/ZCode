@@ -41,19 +41,7 @@ const { attachmentState, chatPromptEditorProps, dialogOpenStates, inputClear, in
 
 function expectedTelemetrySendOptions() {
   return expect.objectContaining({
-    telemetrySeed: {
-      sendTime: expect.any(Number),
-      extraDetail: {
-        ask_mode: "",
-        model_name: "",
-        model_provider: "glm",
-        agent: "glm",
-        plan_status: "unknown",
-        plan_product_id: "",
-        message_source: "chat",
-        task_trigger: "",
-      },
-    },
+    submittedDraftText: expect.any(String),
   });
 }
 
@@ -434,15 +422,7 @@ describe("ConversationComposer prompt history", () => {
 
     expect(onSendText).toHaveBeenCalledWith(
       "立即发送草稿",
-      expect.objectContaining({
-        telemetrySeed: expect.objectContaining({
-          extraDetail: expect.objectContaining({
-            ask_mode: "build",
-            model_name: "custom:e2e-deepseek:deepseek-v4-flash",
-            model_provider: "e2e-deepseek",
-          }),
-        }),
-      }),
+      expect.objectContaining({ submittedDraftText: expect.any(String) }),
     );
 
     await act(async () => root.unmount());

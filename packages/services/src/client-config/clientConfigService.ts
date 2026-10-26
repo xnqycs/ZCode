@@ -1,14 +1,21 @@
 import {
+  applyDynamicWorkflowUserMode,
   buildZCodeEndpointUrls,
   clientConfigReadOptionsSchema,
+  createDynamicWorkflowClientConfig,
+  DEFAULT_DYNAMIC_WORKFLOW_MODE,
   parseClientConfigSnapshot,
+  resolveDynamicWorkflowClientConfig,
   type ApiClient,
   type ClientConfigSnapshot,
+  type DynamicWorkflowClientConfig,
 } from "@zcode/shared";
+import { createServiceLogger } from "#src/logger/serviceLogger.js";
 import type { IClientConfigService } from "./clientConfig.js";
 
 const CACHE_TTL_MS = 60 * 60 * 1000;
 const REQUEST_TIMEOUT_MS = 15_000;
+const log = createServiceLogger("client-config");
 
 interface RequestContext {
   endpointOrigin: string;
@@ -26,6 +33,8 @@ interface CacheEntry {
 export function createClientConfigService(dependencies: {
   apiClient: ApiClient;
   resolveRequestContext: () => RequestContext | Promise<RequestContext>;
+  /** 动态工作流的用户选择；只在 Host 拥有设置权威时注入。 */
+  resolveDynamicWorkflowUserMode?: () => Promise<unknown>;
 }): IClientConfigService {
   const entries = new Map<string, CacheEntry>();
 
@@ -62,34 +71,54 @@ export function createClientConfigService(dependencies: {
     }
   }
 
+  async function getSnapshot(options = {}): Promise<ClientConfigSnapshot> {
+    const { forceRefresh } = clientConfigReadOptionsSchema.parse(options);
+    const context = await dependencies.resolveRequestContext();
+    const url = new URL(
+      "/api/v1/client/configs",
+      buildZCodeEndpointUrls(context.endpointOrigin).origin,
+    );
+    url.searchParams.set("app_version", context.appVersion);
+    url.searchParams.set("platform", context.platform);
+    const key = url.toString();
+    const entry = entries.get(key) ?? { expiresAt: 0 };
+    entries.set(key, entry);
+    if (!forceRefresh && entry.snapshot && entry.expiresAt > Date.now()) {
+      return structuredClone(entry.snapshot);
+    }
+    if (!entry.pending) {
+      entry.pending = fetchSnapshot(url)
+        .then((snapshot) => {
+          entry.snapshot = snapshot;
+          entry.expiresAt = Date.now() + CACHE_TTL_MS;
+          return snapshot;
+        })
+        .finally(() => {
+          entry.pending = undefined;
+        });
+    }
+    return structuredClone(await entry.pending);
+  }
+
   return {
-    async getSnapshot(options = {}) {
-      const { forceRefresh } = clientConfigReadOptionsSchema.parse(options);
-      const context = await dependencies.resolveRequestContext();
-      const url = new URL(
-        "/api/v1/client/configs",
-        buildZCodeEndpointUrls(context.endpointOrigin).origin,
-      );
-      url.searchParams.set("app_version", context.appVersion);
-      url.searchParams.set("platform", context.platform);
-      const key = url.toString();
-      const entry = entries.get(key) ?? { expiresAt: 0 };
-      entries.set(key, entry);
-      if (!forceRefresh && entry.snapshot && entry.expiresAt > Date.now()) {
-        return structuredClone(entry.snapshot);
+    getSnapshot,
+    async getDynamicWorkflowClientConfig(options): Promise<DynamicWorkflowClientConfig> {
+      try {
+        const snapshot = await getSnapshot(options);
+        const offer = resolveDynamicWorkflowClientConfig({
+          remote: snapshot.dynamicWorkflow,
+          env: process.env,
+        });
+        const userMode = dependencies.resolveDynamicWorkflowUserMode
+          ? await dependencies.resolveDynamicWorkflowUserMode()
+          : undefined;
+        return applyDynamicWorkflowUserMode(offer, userMode);
+      } catch (error) {
+        log.warn(undefined, "动态工作流灰度配置读取失败，按关闭处理", {
+          errorMessage: error instanceof Error ? error.message : String(error),
+        });
+        return createDynamicWorkflowClientConfig(DEFAULT_DYNAMIC_WORKFLOW_MODE, "default");
       }
-      if (!entry.pending) {
-        entry.pending = fetchSnapshot(url)
-          .then((snapshot) => {
-            entry.snapshot = snapshot;
-            entry.expiresAt = Date.now() + CACHE_TTL_MS;
-            return snapshot;
-          })
-          .finally(() => {
-            entry.pending = undefined;
-          });
-      }
-      return structuredClone(await entry.pending);
     },
   };
 }

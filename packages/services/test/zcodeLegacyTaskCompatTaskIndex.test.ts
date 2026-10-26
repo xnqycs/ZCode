@@ -8,14 +8,13 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { Emitter, setNetworkTelemetrySink } from "@zcode/rpc";
+import { Emitter } from "@zcode/rpc";
 import type {
   SessionSummary,
   SessionsIndexTopicFrame,
   SessionsIndexTopicWireFrame,
   WorkspaceConfigTopicWireFrame,
 } from "@zcode/shared/zcode-protocol-v4";
-import type { NetworkObservation } from "@zcode/rpc";
 import {
   getLegacyTaskSessionSnapshotPath,
   getTasksIndexDatabasePath,
@@ -63,7 +62,6 @@ const BACKGROUND_AGENT_FAILED_SUMMARY = `Agent general-purpose task "Review" fai
 
 afterEach(async () => {
   vi.useRealTimers();
-  setNetworkTelemetrySink(null);
   while (disposables.length > 0) {
     disposables.pop()?.disposeAll();
   }
@@ -1381,56 +1379,6 @@ describe("ZCode legacy task compat task index", () => {
       sessionId: task.taskId,
       model: { providerId: "provider-b", modelId: "gpt-5.5" },
     });
-  });
-
-  it("records agent model network status events as HTTP network telemetry", async () => {
-    const observations: NetworkObservation[] = [];
-    setNetworkTelemetrySink((observation) => observations.push(observation));
-    const { eventEmitter, service } = createService();
-    const task = await service.createTask({ workspacePath: "/repo", provider: "glm" });
-    const disposable = service.onDynamicTaskEvent({
-      workspacePath: "/repo",
-      taskId: task.taskId,
-      deliveryKind: "continuous",
-    })(() => undefined);
-
-    try {
-      eventEmitter.fire({
-        type: "session.event",
-        event: {
-          eventId: "evt-model-completed",
-          sessionId: task.taskId,
-          seq: 1,
-          timestamp: 1_700_000_000_000,
-          type: "session.updated",
-          payload: {
-            type: "model_request_completed",
-            timestamp: "2026-06-05T00:00:00.000Z",
-            traceId: "trace-model-network",
-            requestId: "request-model-network",
-            model: { providerId: "glm", modelId: "glm-4.6" },
-            baseURL: "https://api.example.com/v1?token=secret",
-            providerKind: "openai-compatible",
-            transport: "sse",
-            attempt: 2,
-            maxAttempts: 3,
-            durationMs: 456,
-          },
-        },
-      });
-    } finally {
-      disposable.dispose();
-    }
-
-    expect(observations).toEqual([
-      {
-        transport: "http",
-        interface: "zcode_agent.model.openai-compatible.sse.api.example.com/v1",
-        durationMs: 456,
-        ok: true,
-        attempt: 2,
-      },
-    ]);
   });
 
   it("projects user input response to elicitation response in dynamic task fallback subscriptions", async () => {

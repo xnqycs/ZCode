@@ -6,7 +6,6 @@ import {
   IMediaPreviewService,
   ICredentialService,
   IOAuthService,
-  ICodingPlanSubscriptionService,
   ISettingService,
   IOnboardingRecordService,
   ISystemService,
@@ -129,9 +128,6 @@ describe("server remote workspace host service wiring", () => {
 
     expect(services.get(ICredentialService)).toBe(remoteServices.credentialService);
     expect(services.get(IOAuthService)).toBe(remoteServices.oauthService);
-    expect(services.get(ICodingPlanSubscriptionService)).toBe(
-      remoteServices.codingPlanSubscriptionService,
-    );
     expect(services.get(ISettingService)).toBe(remoteServices.settingService);
     expect(services.get(ISystemService)).toBe(remoteServices.systemService);
     expect(services.get(IPluginSyncService)).toBe(remoteServices.pluginSyncService);

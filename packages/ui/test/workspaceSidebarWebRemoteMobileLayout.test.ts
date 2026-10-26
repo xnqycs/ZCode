@@ -102,9 +102,6 @@ vi.mock("@/hooks/usePlatform.js", () => ({
   useSelectDirectory: () => vi.fn(),
   useOptionalPlatform: () => null,
 }));
-vi.mock("@/settings/CodingPlanUpgradeDialogProvider.js", () => ({
-  useCodingPlanUpgradeDialog: () => ({ openCodingPlanUpgrade: fixture.openUpgrade }),
-}));
 vi.mock("@/components/manual-claim-plan/ManualClaimPlanBanner.js", () => ({
   ManualClaimPlanBanner: () => null,
 }));

@@ -30,7 +30,7 @@ describe("Window Host attachment RPC policy", () => {
     expect([...policy!.allowedChannels].every((channel) => registeredChannels.has(channel))).toBe(
       true,
     );
-    expect(policy?.allowedChannels.size).toBe(46);
+    expect(policy?.allowedChannels.size).toBe(45);
   });
 
   it("keeps the complete service surface for desktop attachments", () => {

@@ -1,3 +1,5 @@
+> 2026-10-26：Coding Plan / Team Plan / Start Plan 的购买、权益、额度与支付能力已移除；本文中相关历史描述不再代表当前产品。当前模型设置只管理自定义/API-Key provider，App Usage 保留。
+
 # ZCode 产品能力关系图
 
 ## 目标

@@ -8,7 +8,7 @@ import { createNodeApiClient } from "#src/providers/api/nodeApiClient.js";
 import {
   createBigModelLoginAuthHeaders,
   createZaiLoginAuthHeaders,
-} from "#src/coding-plan-subscription/bigmodelCodingPlanSubscriptionProvider.js";
+} from "#src/model-provider/codingPlanProviderAvailability.js";
 
 function createFixture(provider = "zai", env: NodeJS.ProcessEnv = { ZCODE_ENV: "production" }) {
   const credentials = new Map([

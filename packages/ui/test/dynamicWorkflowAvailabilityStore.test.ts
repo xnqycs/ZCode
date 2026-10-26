@@ -1,7 +1,7 @@
 // 动态工作流灰度快照在 renderer 的唯一副本（docs/dynamic-workflow/launch.md「Gray release」DWG-07）。
 // 只钉三件事：一个 app 会话取一次、失败 fail-closed、换了 service 实例会重试。
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { ICodingPlanSubscriptionService } from "@zcode/services";
+import type { IClientConfigService } from "@zcode/services";
 import {
   applyDynamicWorkflowUserMode,
   createDynamicWorkflowClientConfig,
@@ -26,24 +26,24 @@ const DISABLED: DynamicWorkflowClientConfig = createDynamicWorkflowClientConfig(
   "remote",
 );
 
-function serviceReturning(config: DynamicWorkflowClientConfig): ICodingPlanSubscriptionService & {
+function serviceReturning(config: DynamicWorkflowClientConfig): IClientConfigService & {
   getDynamicWorkflowClientConfig: ReturnType<typeof vi.fn>;
 } {
   return {
     getDynamicWorkflowClientConfig: vi.fn(async () => config),
-  } as unknown as ICodingPlanSubscriptionService & {
+  } as unknown as IClientConfigService & {
     getDynamicWorkflowClientConfig: ReturnType<typeof vi.fn>;
   };
 }
 
-function serviceFailing(): ICodingPlanSubscriptionService & {
+function serviceFailing(): IClientConfigService & {
   getDynamicWorkflowClientConfig: ReturnType<typeof vi.fn>;
 } {
   return {
     getDynamicWorkflowClientConfig: vi.fn(async () => {
       throw new Error("host unreachable");
     }),
-  } as unknown as ICodingPlanSubscriptionService & {
+  } as unknown as IClientConfigService & {
     getDynamicWorkflowClientConfig: ReturnType<typeof vi.fn>;
   };
 }

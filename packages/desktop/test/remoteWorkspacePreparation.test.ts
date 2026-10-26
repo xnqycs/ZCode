@@ -19,7 +19,7 @@ describe.each([null, 0o000, 0o400, 0o100])(
       "%s：单个目录失效只拒绝该项目，修复后可以重连",
       async (mode, context) => {
         if (permissions !== null && (process.platform === "win32" || process.getuid?.() === 0)) {
-          context.skip();
+          return;
         }
         const root = await realpath(await mkdtemp(join(tmpdir(), "zcode-workspace-admission-")));
         const paths = [1, 2, 3].map((n) => join(root, `workspace-${n}`));

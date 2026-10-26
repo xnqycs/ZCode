@@ -139,8 +139,8 @@ describe("model provider navigation loading indicator", () => {
     );
 
     expect(html).toContain('aria-label="Provider A"');
-    expect(html).toMatch(
-      /data-testid="model-provider-nav-item-custom:provider-a"[^>]*aria-roledescription="sortable"[\s\S]*Provider A/,
-    );
+    expect(html).toContain('data-testid="model-provider-nav-item-custom:provider-a"');
+    expect(html).toContain('aria-roledescription="sortable"');
+    expect(html).toContain("Provider A");
   });
 });

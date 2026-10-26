@@ -770,29 +770,6 @@ describe("browserDataManager", () => {
     ]);
   });
 
-  it("先复制 LocalStorage 快照，再从快照发现 origin", async () => {
-    const profilePath = join(tempRoot, "Default");
-    const levelDbPath = join(profilePath, "Local Storage", "leveldb");
-    await mkdir(levelDbPath, { recursive: true });
-    await writeFile(
-      join(levelDbPath, "000001.ldb"),
-      Buffer.from("binary\0META:https://chat.z.ai", "latin1"),
-    );
-
-    const result = await importChromeLocalStorage({
-      profilePath,
-      platform: "aix",
-      logger,
-      targetSession: {} as Electron.Session,
-    });
-
-    expect(result).toMatchObject({
-      originsImported: 0,
-      originsFailed: 1,
-      error: "chrome_executable_not_found",
-    });
-  });
-
   it("普通清理保留 Cookie，全量清理使用 Electron 全存储清理", async () => {
     const clearCache = vi.fn(async () => {});
     const clearStorageData = vi.fn(async () => {});

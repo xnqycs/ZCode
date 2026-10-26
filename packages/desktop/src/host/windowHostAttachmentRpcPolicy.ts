@@ -46,7 +46,6 @@ const WEB_REMOTE_REPLAYABLE_ALLOWED_CHANNELS = new Set<string>([
   // ProviderProvisioningTarget 携带跨 Environment 凭据写入，只允许受信 Desktop Host 调用，绝不进手机 allowlist。
   ServiceChannels.SourceServerWorkspace,
   ServiceChannels.UsageStats,
-  ServiceChannels.CodingPlanSubscription,
   ServiceChannels.ClientScenes,
   ServiceChannels.Skills,
   ServiceChannels.SkillSync,

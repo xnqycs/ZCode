@@ -132,6 +132,22 @@ async function clearAllDataAndRelaunch(options: {
   app.exit(0);
 }
 
+export async function clearRewardsWebviewStorage(options: {
+  logger: {
+    info: (...args: unknown[]) => void;
+    warn: (...args: unknown[]) => void;
+  };
+}) {
+  try {
+    // Rewards 使用独立持久 partition，默认窗口 session.clearStorageData() 不会覆盖它。
+    // 该清理必须独立于 Coding Plan，否则删除套餐支付后会一并丢掉 Rewards 的登出清理。
+    await session.fromPartition(REWARDS_PARTITION).clearStorageData();
+    options.logger.info("[rewards-webview] cleared persistent partition storage");
+  } catch (error) {
+    options.logger.warn("[rewards-webview] failed to clear persistent partition storage:", error);
+  }
+}
+
 export async function clearCodingPlanWebviewStorage(options: {
   logger: {
     info: (...args: unknown[]) => void;
@@ -142,7 +158,6 @@ export async function clearCodingPlanWebviewStorage(options: {
     // Coding Plan webview 使用独立持久 partition，默认窗口 session.clearStorageData()
     // 不会覆盖它；退出登录/清理数据时必须显式清除，避免旧账号 token 被下一次官网首屏读到。
     await session.fromPartition(CODING_PLAN_WEBVIEW_PARTITION).clearStorageData();
-    await session.fromPartition(REWARDS_PARTITION).clearStorageData();
     options.logger.info("[coding-plan-webview] cleared persistent partition storage");
   } catch (error) {
     options.logger.warn(
@@ -677,6 +692,7 @@ export async function executeDesktopCommand(options: {
       });
       return;
     case DesktopCommandIds.ClearAllData:
+      await clearRewardsWebviewStorage({ logger: options.logger });
       await clearCodingPlanWebviewStorage({ logger: options.logger });
       await clearAllDataAndRelaunch({
         credentialsDir: options.credentialsDir,
