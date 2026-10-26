@@ -24,11 +24,11 @@ import {
   resolveZaiStartPlanBalanceModelIds,
   type ZaiStartPlanBalanceEnvelope,
 } from "./zaiStartPlanBilling.js";
-function createBigModelLoginAuthHeaders(token: string): Record<string, string> {
+export function createBigModelLoginAuthHeaders(token: string): Record<string, string> {
   return { Authorization: token, "Content-Type": "application/json" };
 }
 
-function createZaiLoginAuthHeaders(token: string): Record<string, string> {
+export function createZaiLoginAuthHeaders(token: string): Record<string, string> {
   return { Authorization: token, "Content-Type": "application/json" };
 }
 

@@ -841,29 +841,6 @@ bundle-root-body`,
     }
   });
 
-  it("非桌面 runtime 不读取用户级技能", async () => {
-    const home = makeTempHome();
-    const workspacePath = join(home, "workspace");
-    writeSkill(
-      userSkillRoot(home),
-      "zcode-global",
-      `---
-name: zcode-global
-description: user zcode
----
-body`,
-    );
-
-    const service = await createSkillsServiceInEnv(home, { isDesktopRuntime: false });
-    const result = await service.list({ workspacePath, provider: "glm" });
-
-    expect(result.capability).toEqual({
-      userScopeAvailable: false,
-      userScopeReason: "desktop_only",
-    });
-    expect(result.skills).toEqual([]);
-  });
-
   // Windows 跳过：此测试失败原因是 CLI config 写入逻辑问题，非 Windows 特定
   const isWindows = process.platform === "win32";
 

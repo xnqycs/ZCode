@@ -135,7 +135,6 @@ describe("createWebRemoteControlSharedHostAttachments", () => {
       entryId: "remote-session-host:remote-session-1",
       process: child,
       port: ports.port1,
-      remoteKind: "ssh",
     });
 
     manager.releaseAttachment(attachment.attachmentId);

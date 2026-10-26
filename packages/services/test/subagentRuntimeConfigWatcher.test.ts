@@ -428,7 +428,7 @@ describe("native subagent Host watchers", () => {
     await f.both({ kind: "ready", profiles: [] });
   }, 15000);
 
-  it.skipIf(process.platform === "win32")(
+  it.skipIf(process.platform === "win32" || process.getuid?.() === 0)(
     "publishes initial fallback when state cannot be read, including its migration",
     async () => {
       const homeDir = await mkdtemp(join(tmpdir(), "subagent-initial-state-"));
@@ -446,7 +446,7 @@ describe("native subagent Host watchers", () => {
     },
   );
 
-  it.skipIf(process.platform === "win32")(
+  it.skipIf(process.platform === "win32" || process.getuid?.() === 0)(
     "does not publish a write rejected before disk mutation, but consumes a partially failed rename",
     async () => {
       const f = await pair();

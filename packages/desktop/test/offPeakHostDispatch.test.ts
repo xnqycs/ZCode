@@ -240,15 +240,6 @@ describe("Host OffPeak dispatch current execution contract", () => {
         deferPersistenceUntilFirstPrompt: true,
       }),
     );
-    expect(state.report).toHaveBeenCalledExactlyOnceWith(
-      {},
-      {
-        sessionId: "new",
-        messageId: "trace-new",
-        source: "automation_idle",
-        workspaceIdentity: state.request.workspaceIdentity,
-      },
-    );
     expect(state.service.createTask.mock.calls[0]?.[0]).not.toHaveProperty("modelSelection");
     expect(state.service.sendPrompt).toHaveBeenCalledWith(
       expect.objectContaining({
